@@ -96,8 +96,7 @@ export function executeQuery(
 
   setQueryExecuting(ns, id);
 
-  let promise: Promise<void>;
-  promise = new Promise<unknown>((resolve) => resolve(request()))
+  const promise = new Promise<unknown>((resolve) => resolve(request()))
     .then((data) => setQueryExecuted(ns, id, data))
     .catch((error: unknown) => {
       const normalizedError = toError(error);

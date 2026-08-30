@@ -26,6 +26,13 @@ useUser(42);
 // @ts-expect-error a resource ID is string or number
 useUser({ id: 42 }, { organizationId: "acme" });
 
+const useUserSearch = api
+  .route("organizations/:organizationId/users")
+  .search<User>();
+useUserSearch(new URLSearchParams("name=ada"), { organizationId: "acme" });
+// @ts-expect-error parent route parameters are required for searches
+useUserSearch();
+
 const useCreateUser = api
   .route("organizations/:organizationId/users")
   .create<{ name: string }, User>();

@@ -1,6 +1,6 @@
-import { buildRoute, ResourceId } from "fetch-run";
+import { ResourceId } from "fetch-run";
 
-import { createQuery, Query, useQueryState } from "./query";
+import { createQuery, Query } from "./query";
 import { ExtractRouteParams } from "./types";
 
 //
@@ -56,15 +56,14 @@ export function createSearchQuery<R extends string, Res extends object>(
   route: R,
   execute: (url: string) => Promise<Res | undefined>
 ) {
+  const useQuery = createQuery<R, Res>(ns, route, execute);
+
   type _RouteParams = ExtractRouteParams<R>;
 
   return function useSearchQuery(
     searchParams: URLSearchParams = new URLSearchParams(),
     routeParams: _RouteParams = {} as _RouteParams
   ) {
-    const routeId = buildRoute(route, routeParams);
-    const id = `${routeId}?${searchParams}`;
-
-    return useQueryState(ns, id, execute);
+    return useQuery(routeParams, searchParams);
   };
 }

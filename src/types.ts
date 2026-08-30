@@ -8,5 +8,5 @@ export type ExtractRouteParams<T extends string> =
       : {};
 
 export type WithOptionalRouteParams<P, R> = [keyof P] extends [never]
-  ? (routeParams?: P) => R
-  : (routeParams: P) => R;
+  ? (routeParams?: P, searchParams?: URLSearchParams) => R
+  : (routeParams: P, searchParams?: URLSearchParams) => R;

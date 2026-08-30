@@ -13,49 +13,6 @@ export type Query<T> = {
   refetch: () => Promise<void>;
 };
 
-export function useQueryState<Res extends object>(
-  ns: string,
-  id: string,
-  execute: (url: string) => Promise<Res | undefined>
-): Query<Res> {
-  // State
-  const data = useApiStore(ns, (s) => s.data[id] as Res | undefined);
-  const { error, isFetching, isStale } = useApiStore(ns, (s) => ({
-    error: s.errors[id] ?? null,
-    isFetching: s.fetching[id] === true,
-    isStale: s.stale[id] === true,
-  }));
-
-  // Computed
-  const isLoading = !data && isFetching;
-
-  // Methods
-  const invalidate = useCallback(() => {
-    invalidateQuery(ns, id);
-  }, [id, ns]);
-
-  const refetch = useCallback(() => {
-    return executeQuery(ns, id, () => execute(id));
-  }, [execute, id, ns]);
-
-  // Effects
-  useEffect(() => {
-    if (!error && (!data || isStale)) {
-      void refetch().catch(() => undefined);
-    }
-  }, [data, error, isStale, refetch]);
-
-  // Public
-  return {
-    data,
-    error,
-    invalidate,
-    isFetching,
-    isLoading,
-    refetch,
-  };
-}
-
 export function createQuery<R extends string, Res extends object>(
   ns: string,
   route: R,
@@ -63,10 +20,50 @@ export function createQuery<R extends string, Res extends object>(
 ) {
   type _RouteParams = ExtractRouteParams<R>;
 
-  const useQuery = (routeParams: _RouteParams = {} as _RouteParams) => {
+  const useQuery = (
+    routeParams: _RouteParams = {} as _RouteParams,
+    searchParams?: URLSearchParams
+  ): Query<Res> => {
+    // Vars
     const id = buildRoute(route, routeParams);
+    const url = !searchParams ? id : `${id}?${searchParams}`;
 
-    return useQueryState(ns, id, execute);
+    // State
+    const data = useApiStore(ns, (s) => s.data[id] as Res | undefined);
+    const { error, isFetching, isStale } = useApiStore(ns, (s) => ({
+      error: s.errors[id] ?? null,
+      isFetching: s.fetching[id] === true,
+      isStale: s.stale[id] === true,
+    }));
+
+    // Computed
+    const isLoading = !data && isFetching;
+
+    // Methods
+    const invalidate = useCallback(() => {
+      invalidateQuery(ns, id);
+    }, [id, ns]);
+
+    const refetch = useCallback(() => {
+      return executeQuery(ns, id, () => execute(url));
+    }, [execute, id, ns, url]);
+
+    // Effects
+    useEffect(() => {
+      if (!error && (!data || isStale)) {
+        void refetch().catch(() => undefined);
+      }
+    }, [data, error, isStale, refetch]);
+
+    // Public
+    return {
+      data,
+      error,
+      invalidate,
+      isFetching,
+      isLoading,
+      refetch,
+    };
   };
 
   type UseQueryFn = WithOptionalRouteParams<_RouteParams, Query<Res>>;

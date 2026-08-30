@@ -10,9 +10,9 @@
 
 ---
 
-> **Design update:** `createQuery` remains route-keyed. `createSearchQuery`
-> alone builds a full URL cache ID from its runtime search parameters, so
-> distinct searches fetch and cache independently.
+> **Design update:** Search parameters intentionally share their route cache
+> key, because search results are shown one at a time. Do not add a separate
+> search-cache regression test or use the full URL as a cache key.
 
 ## File structure
 

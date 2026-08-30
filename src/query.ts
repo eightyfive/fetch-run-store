@@ -1,8 +1,8 @@
-import { buildRoute, ExtractRouteParams } from "fetch-run";
 import { useCallback, useEffect } from "react";
 
 import { executeQuery, invalidateQuery, useApiStore } from "./store";
-import { WithOptionalRouteParams } from "./types";
+import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
+import { buildRoute } from "./utils";
 
 export type Query<T> = {
   data: T | undefined;
@@ -24,7 +24,8 @@ export function createQuery<R extends string, Res extends object>(
     routeParams: _RouteParams = {} as _RouteParams,
     searchParams?: URLSearchParams
   ): Query<Res> => {
-    // Vars
+    // Search parameters affect the request URL, but cache and flight identity
+    // deliberately remain route-based.
     const id = buildRoute(route, routeParams);
     const url = !searchParams ? id : `${id}?${searchParams}`;
 
@@ -42,16 +43,16 @@ export function createQuery<R extends string, Res extends object>(
     // Methods
     const invalidate = useCallback(() => {
       invalidateQuery(ns, id);
-    }, [id]);
+    }, [id, ns]);
 
     const refetch = useCallback(() => {
       return executeQuery(ns, id, () => execute(url));
-    }, [id, ns, url]);
+    }, [execute, id, ns, url]);
 
     // Effects
     useEffect(() => {
       if (!error && (!data || isStale)) {
-        refetch();
+        void refetch().catch(() => undefined);
       }
     }, [data, error, isStale, refetch]);
 

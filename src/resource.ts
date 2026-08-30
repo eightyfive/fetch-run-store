@@ -1,7 +1,5 @@
-import { ResourceId } from "fetch-run";
-
 import { createQuery, Query } from "./query";
-import { ExtractRouteParams } from "./types";
+import { ExtractRouteParams, ResourceId } from "./types";
 
 //
 // CRUDL
@@ -51,6 +49,10 @@ export function createListQuery<R extends string, Res extends object>(
 }
 
 // SEARCH
+/**
+ * Search parameters change the request URL, not the cache key. Callers control
+ * subsequent searches (for example, by debouncing input and calling refetch).
+ */
 export function createSearchQuery<R extends string, Res extends object>(
   ns: string,
   route: R,

@@ -23,6 +23,14 @@ export const store = createStore<RootState>(() => ({
   namespaces: {},
 }));
 
+// Flights are keyed by cache identity: the first request wins and later callers
+// share its promise until it settles.
+const flights = new Map<string, Promise<void>>();
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
 function setQueryExecuting(ns: string, id: string) {
   store.setState((state) => {
     const namespace = state.namespaces[ns] ?? { ...initialNamespace };
@@ -76,26 +84,36 @@ function setQueryErrored(ns: string, id: string, error: Error) {
   });
 }
 
-export async function executeQuery(
+export function executeQuery(
   ns: string,
   id: string,
   request: () => Promise<unknown>
 ) {
-  const isFetching = store.getState().namespaces[ns]?.fetching[id] === true;
+  const key = `${ns}/${id}`;
+  const existing = flights.get(key);
 
-  if (!isFetching) {
-    setQueryExecuting(ns, id);
-
-    try {
-      const data = await request();
-
-      setQueryExecuted(ns, id, data);
-    } catch (err) {
-      setQueryErrored(ns, id, err as Error);
-
-      throw err;
-    }
+  if (existing) {
+    return existing;
   }
+
+  setQueryExecuting(ns, id);
+
+  const promise = new Promise<unknown>((resolve) => resolve(request()))
+    .then((data) => setQueryExecuted(ns, id, data))
+    .catch((error: unknown) => {
+      const normalizedError = toError(error);
+      setQueryErrored(ns, id, normalizedError);
+      throw normalizedError;
+    })
+    .finally(() => {
+      if (flights.get(key) === promise) {
+        flights.delete(key);
+      }
+    });
+
+  flights.set(key, promise);
+
+  return promise;
 }
 
 export function invalidateQuery(ns: string, id: string) {

@@ -4,7 +4,9 @@
   "description": "🐻 Bear necessities for api query management in react",
   "scripts": {
     "build": "rm -rf dist && tsc --project .",
-    "test": "jest src/",
+    "test": "npm run test:runtime && npm run test:types",
+    "test:runtime": "jest --runInBand",
+    "test:types": "tsc --project tsconfig.type-tests.json",
     "release": "np"
   },
   "keywords": [
@@ -27,14 +29,19 @@
     "registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/jest": "^30.0.0",
+    "@types/lodash.merge": "^4.6.9",
     "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.5",
     "@types/web": "^0.0.294",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.5.0",
     "prettier": "^3.6.2",
     "react": "^19.2.0",
+    "react-dom": "^19.2.8",
     "ts-jest": "^29.4.5",
     "typescript": "^5.9.3"
   },

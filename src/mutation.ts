@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { buildRoute, ExtractRouteParams } from "fetch-run";
-import { WithOptionalRouteParams } from "./types";
+import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
+import { buildRoute } from "./utils";
 
 export type Mutation<Req extends object | void, Res extends object | void> = [
   (data: Req) => Promise<Res>,
@@ -21,13 +21,13 @@ export function createMutation<
 
     // State
     const [error, setError] = useState<Error | null>(null);
-    const [isLoading, setLoading] = useState(false);
+    const [pendingCount, setPendingCount] = useState(0);
 
     // Methods
     const mutate = useCallback(
       async (data: Req): Promise<Res> => {
         setError(null);
-        setLoading(true);
+        setPendingCount((count) => count + 1);
 
         try {
           const res = await execute(url, data);
@@ -41,14 +41,14 @@ export function createMutation<
           // Always throw
           throw err;
         } finally {
-          setLoading(false);
+          setPendingCount((count) => count - 1);
         }
       },
-      [url]
+      [execute, url]
     );
 
     // Public
-    return [mutate, isLoading, error] as const;
+    return [mutate, pendingCount > 0, error] as const;
   };
 
   type UseMutationFn = WithOptionalRouteParams<

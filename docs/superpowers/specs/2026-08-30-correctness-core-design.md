@@ -11,8 +11,11 @@ remain internal implementation details.
 - Typed route parameters remain mandatory whenever a route contains `:params`.
 - Parameter-free routes continue to accept no argument.
 - Read queries keep `id` separate from parent-route parameters.
-- Search queries cache each distinct URL, including its serialized search
-  parameters.
+- Search queries cache by route path. Search parameters affect the request URL
+  but intentionally share one active result per route.
+- A search parameter change does not replace an active route flight; callers
+  choose when to run a later search, typically by debouncing input and calling
+  `refetch()` for the applied parameters.
 - `refetch()` resolves only when the underlying request has completed, even
   when callers refetch the same key concurrently.
 - Query failures appear in query state; effect-driven fetching must not produce
@@ -46,10 +49,12 @@ before storing them. Keep stale/error/data semantics otherwise unchanged.
 
 ### Query hook
 
-Use the full request URL as the cache key, so search variants do not collide.
-Continue building the request URL from the typed route plus optional search
-parameters. Initiate effect fetches without exposing their rejected promise to
-React; explicit `refetch()` still rejects to its caller.
+Keep the typed route as the cache key and build the request URL from it plus
+optional search parameters. This intentionally deduplicates simultaneous
+searches on one route. Search timing remains caller-owned; no automatic
+replacement or cancellation is added. Initiate effect fetches without exposing
+their rejected promise to React; explicit `refetch()` still rejects to its
+caller.
 
 ### Mutation hook
 
@@ -63,9 +68,8 @@ Runtime tests will cover:
 
 1. Query state transitions for success, errors, invalidation, and reset.
 2. Shared in-flight request behavior, including shared rejection.
-3. Separate cache entries for separate search URLs.
-4. Mutation loading state while overlapping calls are pending.
-5. Hook-level fetch/error behavior where React effects are involved.
+3. Mutation loading state while overlapping calls are pending.
+4. Hook-level fetch/error behavior where React effects are involved.
 
 Type tests will prove that valid typed routes compile and that these invalid
 calls fail compilation: missing route parameters, missing parent parameters

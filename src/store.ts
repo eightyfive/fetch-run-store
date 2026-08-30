@@ -23,6 +23,8 @@ export const store = createStore<RootState>(() => ({
   namespaces: {},
 }));
 
+// Flights are keyed by cache identity: the first request wins and later callers
+// share its promise until it settles.
 const flights = new Map<string, Promise<void>>();
 
 function toError(error: unknown): Error {

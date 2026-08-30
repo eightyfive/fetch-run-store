@@ -13,6 +13,9 @@ remain internal implementation details.
 - Read queries keep `id` separate from parent-route parameters.
 - Search queries cache by route path. Search parameters affect the request URL
   but intentionally share one active result per route.
+- A search parameter change does not replace an active route flight; callers
+  choose when to run a later search, typically by debouncing input and calling
+  `refetch()` for the applied parameters.
 - `refetch()` resolves only when the underlying request has completed, even
   when callers refetch the same key concurrently.
 - Query failures appear in query state; effect-driven fetching must not produce
@@ -48,8 +51,10 @@ before storing them. Keep stale/error/data semantics otherwise unchanged.
 
 Keep the typed route as the cache key and build the request URL from it plus
 optional search parameters. This intentionally deduplicates simultaneous
-searches on one route. Initiate effect fetches without exposing their rejected
-promise to React; explicit `refetch()` still rejects to its caller.
+searches on one route. Search timing remains caller-owned; no automatic
+replacement or cancellation is added. Initiate effect fetches without exposing
+their rejected promise to React; explicit `refetch()` still rejects to its
+caller.
 
 ### Mutation hook
 

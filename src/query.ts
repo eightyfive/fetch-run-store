@@ -24,7 +24,8 @@ export function createQuery<R extends string, Res extends object>(
     routeParams: _RouteParams = {} as _RouteParams,
     searchParams?: URLSearchParams
   ): Query<Res> => {
-    // Vars
+    // Search parameters affect the request URL, but cache and flight identity
+    // deliberately remain route-based.
     const id = buildRoute(route, routeParams);
     const url = !searchParams ? id : `${id}?${searchParams}`;
 

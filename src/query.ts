@@ -1,8 +1,8 @@
-import { buildRoute, ExtractRouteParams } from "fetch-run";
 import { useCallback, useEffect } from "react";
 
 import { executeQuery, invalidateQuery, useApiStore } from "./store";
-import { WithOptionalRouteParams } from "./types";
+import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
+import { buildRoute } from "./utils";
 
 export type Query<T> = {
   data: T | undefined;

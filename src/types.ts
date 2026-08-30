@@ -1,4 +1,6 @@
-import { ResourceId } from "fetch-run";
+export type ResourceId = string | number;
+
+export type RouteParams = Record<string, ResourceId>;
 
 export type ExtractRouteParams<T extends string> =
   T extends `${string}:${infer Param}/${infer Rest}`

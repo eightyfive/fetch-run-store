@@ -1,7 +1,5 @@
-import { ResourceId } from "fetch-run";
-
 import { createQuery, Query } from "./query";
-import { ExtractRouteParams } from "./types";
+import { ExtractRouteParams, ResourceId } from "./types";
 
 //
 // CRUDL

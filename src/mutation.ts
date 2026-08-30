@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { buildRoute, ExtractRouteParams } from "fetch-run";
-import { WithOptionalRouteParams } from "./types";
+import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
+import { buildRoute } from "./utils";
 
 export type Mutation<Req extends object | void, Res extends object | void> = [
   (data: Req) => Promise<Res>,

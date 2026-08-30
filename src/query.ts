@@ -25,8 +25,9 @@ export function createQuery<R extends string, Res extends object>(
     searchParams?: URLSearchParams
   ): Query<Res> => {
     // Vars
-    const id = buildRoute(route, routeParams);
-    const url = !searchParams ? id : `${id}?${searchParams}`;
+    const routeId = buildRoute(route, routeParams);
+    const url = !searchParams ? routeId : `${routeId}?${searchParams}`;
+    const id = url;
 
     // State
     const data = useApiStore(ns, (s) => s.data[id] as Res | undefined);
@@ -42,16 +43,16 @@ export function createQuery<R extends string, Res extends object>(
     // Methods
     const invalidate = useCallback(() => {
       invalidateQuery(ns, id);
-    }, [id]);
+    }, [id, ns]);
 
     const refetch = useCallback(() => {
       return executeQuery(ns, id, () => execute(url));
-    }, [id, ns, url]);
+    }, [execute, id, ns, url]);
 
     // Effects
     useEffect(() => {
       if (!error && (!data || isStale)) {
-        refetch();
+        void refetch().catch(() => undefined);
       }
     }, [data, error, isStale, refetch]);
 

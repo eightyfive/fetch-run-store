@@ -1,0 +1,48 @@
+{
+  "name": "fetch-run-store",
+  "version": "0.0.0",
+  "description": "🐻 Bear necessities for api query management in react",
+  "scripts": {
+    "build": "rm -rf dist && tsc --project .",
+    "test": "jest src/",
+    "release": "np"
+  },
+  "keywords": [
+    "fetch",
+    "fetch-run",
+    "api",
+    "store",
+    "react-query"
+  ],
+  "browser": "./dist/index.js",
+  "main": "./dist/index.js",
+  "react-native": "./src/index.ts",
+  "author": "0x55 <0xfiftyfive@gmail.com>",
+  "license": "ISC",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/react": "^19.2.2",
+    "@types/web": "^0.0.294",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "jest": "^30.2.0",
+    "prettier": "^3.6.2",
+    "react": "^19.2.0",
+    "ts-jest": "^29.4.5",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "react": "*"
+  },
+  "dependencies": {
+    "fetch-run": "next",
+    "zustand": "^5.0.8"
+  }
+}

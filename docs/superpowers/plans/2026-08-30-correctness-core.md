@@ -10,6 +10,10 @@
 
 ---
 
+> **Design update:** Search parameters intentionally share their route cache
+> key, because search results are shown one at a time. Do not add a separate
+> search-cache regression test or use the full URL as a cache key.
+
 ## File structure
 
 - `tsconfig.json` — strict library build configuration that emits `dist`.

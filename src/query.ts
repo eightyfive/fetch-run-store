@@ -25,9 +25,8 @@ export function createQuery<R extends string, Res extends object>(
     searchParams?: URLSearchParams
   ): Query<Res> => {
     // Vars
-    const routeId = buildRoute(route, routeParams);
-    const url = !searchParams ? routeId : `${routeId}?${searchParams}`;
-    const id = url;
+    const id = buildRoute(route, routeParams);
+    const url = !searchParams ? id : `${id}?${searchParams}`;
 
     // State
     const data = useApiStore(ns, (s) => s.data[id] as Res | undefined);

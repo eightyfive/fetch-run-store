@@ -23,7 +23,7 @@ export const store = createStore<RootState>(() => ({
   namespaces: {},
 }));
 
-const inFlightQueries = new Map<string, Map<string, Promise<void>>>();
+const flights = new Map<string, Promise<void>>();
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
@@ -87,15 +87,13 @@ export function executeQuery(
   id: string,
   request: () => Promise<unknown>
 ) {
-  const namespaceFlights =
-    inFlightQueries.get(ns) ?? new Map<string, Promise<void>>();
-  const existing = namespaceFlights.get(id);
+  const key = `${ns}/${id}`;
+  const existing = flights.get(key);
 
   if (existing) {
     return existing;
   }
 
-  inFlightQueries.set(ns, namespaceFlights);
   setQueryExecuting(ns, id);
 
   let promise: Promise<void>;
@@ -107,16 +105,12 @@ export function executeQuery(
       throw normalizedError;
     })
     .finally(() => {
-      if (namespaceFlights.get(id) === promise) {
-        namespaceFlights.delete(id);
-      }
-
-      if (namespaceFlights.size === 0) {
-        inFlightQueries.delete(ns);
+      if (flights.get(key) === promise) {
+        flights.delete(key);
       }
     });
 
-  namespaceFlights.set(id, promise);
+  flights.set(key, promise);
 
   return promise;
 }

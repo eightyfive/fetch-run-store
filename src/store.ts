@@ -37,6 +37,10 @@ function generationFor(key: string) {
 }
 
 function invalidateFlight(key: string) {
+  if (!flights.has(key)) {
+    return;
+  }
+
   generations.set(key, generationFor(key) + 1);
   flights.delete(key);
 }

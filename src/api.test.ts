@@ -12,7 +12,7 @@ test("invalidates one resolved cache ID in its API namespace", async () => {
 
   apiStore.invalidateQuery("users/42");
 
-  expect(store.getState().namespaces[baseUrl].stale["users/42"]).toBe(true);
+  expect(store.getState().namespaces[baseUrl].fresh["users/42"]).toBe(false);
 });
 
 test("invalidates and resets only its API namespace", async () => {
@@ -21,7 +21,7 @@ test("invalidates and resets only its API namespace", async () => {
   apiStore.invalidateQueries();
 
   expect(store.getState().namespaces[baseUrl].data.users).toEqual([{ id: 1 }]);
-  expect(store.getState().namespaces[baseUrl].stale.users).toBe(true);
+  expect(store.getState().namespaces[baseUrl].fresh.users).toBeUndefined();
 
   apiStore.resetQueries();
 

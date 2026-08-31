@@ -5,14 +5,14 @@ interface ApiStoreState {
   data: Record<string, unknown>;
   errors: Record<string, Error | null>;
   fetching: Record<string, boolean>;
-  stale: Record<string, boolean>;
+  fresh: Record<string, boolean>;
 }
 
 const initialNamespace = {
   data: {},
   errors: {},
   fetching: {},
-  stale: {},
+  fresh: {},
 };
 
 type RootState = {
@@ -42,7 +42,7 @@ function setQueryExecuting(ns: string, id: string) {
           ...namespace,
           errors: { ...namespace.errors, [id]: null },
           fetching: { ...namespace.fetching, [id]: true },
-          // stale stays as-is; we clear it on success
+          // Freshness stays as-is until the request succeeds.
         },
       },
     };
@@ -60,7 +60,7 @@ function setQueryExecuted(ns: string, id: string, data: unknown) {
           ...namespace,
           data: { ...namespace.data, [id]: data },
           fetching: { ...namespace.fetching, [id]: false },
-          stale: { ...namespace.stale, [id]: false },
+          fresh: { ...namespace.fresh, [id]: true },
         },
       },
     };
@@ -119,13 +119,18 @@ export function executeQuery(
 export function invalidateQuery(ns: string, id: string) {
   store.setState((state) => {
     const namespace = state.namespaces[ns] ?? { ...initialNamespace };
+
+    if (!namespace.errors[id] && namespace.fresh[id] === false) {
+      return state;
+    }
+
     return {
       namespaces: {
         ...state.namespaces,
         [ns]: {
           ...namespace,
           errors: { ...namespace.errors, [id]: null },
-          stale: { ...namespace.stale, [id]: true },
+          fresh: { ...namespace.fresh, [id]: false },
         },
       },
     };
@@ -133,27 +138,15 @@ export function invalidateQuery(ns: string, id: string) {
 }
 
 export function invalidateQueries(ns: string) {
-  store.setState((state) => {
-    const namespace = state.namespaces[ns] ?? { ...initialNamespace };
-    const ids = new Set([
-      ...Object.keys(namespace.data),
-      ...Object.keys(namespace.errors),
-      ...Object.keys(namespace.fetching),
-      ...Object.keys(namespace.stale),
-    ]);
-
-    return {
-      namespaces: {
-        ...state.namespaces,
-        [ns]: {
-          ...namespace,
-          errors: {},
-          fetching: {},
-          stale: Object.fromEntries([...ids].map((id) => [id, true])),
-        },
+  store.setState((state) => ({
+    namespaces: {
+      ...state.namespaces,
+      [ns]: {
+        ...initialNamespace,
+        data: state.namespaces[ns]?.data ?? {},
       },
-    };
-  });
+    },
+  }));
 }
 
 export function resetQueries(ns: string) {

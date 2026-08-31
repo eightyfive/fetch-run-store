@@ -31,10 +31,10 @@ export function createQuery<R extends string, Res extends object>(
 
     // State
     const data = useApiStore(ns, (s) => s.data[id] as Res | undefined);
-    const { error, isFetching, isStale } = useApiStore(ns, (s) => ({
+    const { error, isFetching, isFresh } = useApiStore(ns, (s) => ({
       error: s.errors[id] ?? null,
       isFetching: s.fetching[id] === true,
-      isStale: s.stale[id] === true,
+      isFresh: s.fresh[id] === true,
     }));
 
     // Computed
@@ -51,10 +51,10 @@ export function createQuery<R extends string, Res extends object>(
 
     // Effects
     useEffect(() => {
-      if (!error && (!data || isStale)) {
+      if (!error && (!data || !isFresh)) {
         void refetch().catch(() => undefined);
       }
-    }, [data, error, isStale, refetch]);
+    }, [data, error, isFresh, refetch]);
 
     // Public
     return {

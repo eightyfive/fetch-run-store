@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "declaration": true,
+    "declarationMap": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM"],
@@ -8,9 +9,16 @@
     "outDir": "dist",
     "rootDir": "src",
     "skipLibCheck": true,
+    "sourceMap": true,
     "strict": true,
     "target": "ES2022"
   },
-  "exclude": ["dist", "node_modules", "tests"],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "tests",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
+  ],
   "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

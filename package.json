@@ -16,14 +16,15 @@
     "store",
     "react-query"
   ],
-  "browser": "./dist/index.js",
   "main": "./dist/index.js",
-  "react-native": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "author": "0x55 <0xfiftyfive@gmail.com>",
   "license": "ISC",
   "files": [
     "dist",
-    "src"
+    "src",
+    "!dist/**/*.test.*",
+    "!src/**/*.test.*"
   ],
   "publishConfig": {
     "registry": "https://registry.npmjs.org"

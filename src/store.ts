@@ -26,6 +26,34 @@ export const store = createStore<RootState>(() => ({
 // Flights are keyed by cache identity: the first request wins and later callers
 // share its promise until it settles.
 const flights = new Map<string, Promise<void>>();
+const generations = new Map<string, number>();
+
+function flightKey(ns: string, id: string) {
+  return `${ns}/${id}`;
+}
+
+function generationFor(key: string) {
+  return generations.get(key) ?? 0;
+}
+
+function invalidateFlight(key: string) {
+  if (!flights.has(key)) {
+    return;
+  }
+
+  generations.set(key, generationFor(key) + 1);
+  flights.delete(key);
+}
+
+function invalidateNamespaceFlights(ns: string) {
+  const prefix = `${ns}/`;
+
+  for (const key of flights.keys()) {
+    if (key.startsWith(prefix)) {
+      invalidateFlight(key);
+    }
+  }
+}
 
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
@@ -89,20 +117,29 @@ export function executeQuery(
   id: string,
   request: () => Promise<unknown>
 ) {
-  const key = `${ns}/${id}`;
+  const key = flightKey(ns, id);
   const existing = flights.get(key);
 
   if (existing) {
     return existing;
   }
 
+  const generation = generationFor(key);
   setQueryExecuting(ns, id);
 
   const promise = new Promise<unknown>((resolve) => resolve(request()))
-    .then((data) => setQueryExecuted(ns, id, data))
+    .then((data) => {
+      if (generation === generationFor(key)) {
+        setQueryExecuted(ns, id, data);
+      }
+    })
     .catch((error: unknown) => {
       const normalizedError = toError(error);
-      setQueryErrored(ns, id, normalizedError);
+
+      if (generation === generationFor(key)) {
+        setQueryErrored(ns, id, normalizedError);
+      }
+
       throw normalizedError;
     })
     .finally(() => {
@@ -117,6 +154,8 @@ export function executeQuery(
 }
 
 export function invalidateQuery(ns: string, id: string) {
+  invalidateFlight(flightKey(ns, id));
+
   store.setState((state) => {
     const namespace = state.namespaces[ns] ?? { ...initialNamespace };
 
@@ -138,6 +177,8 @@ export function invalidateQuery(ns: string, id: string) {
 }
 
 export function invalidateQueries(ns: string) {
+  invalidateNamespaceFlights(ns);
+
   store.setState((state) => ({
     namespaces: {
       ...state.namespaces,
@@ -150,6 +191,8 @@ export function invalidateQueries(ns: string) {
 }
 
 export function resetQueries(ns: string) {
+  invalidateNamespaceFlights(ns);
+
   store.setState((state) => ({
     namespaces: {
       ...state.namespaces,

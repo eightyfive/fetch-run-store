@@ -1,4 +1,9 @@
-import { executeQuery, resetQueries, store } from "./store";
+import {
+  executeQuery,
+  invalidateQuery,
+  resetQueries,
+  store,
+} from "./store";
 
 function deferred<T>() {
   let reject!: (reason?: unknown) => void;
@@ -40,4 +45,52 @@ test("stores a normalized Error and shares request failure", async () => {
   expect(store.getState().namespaces["store-test"].errors.users).toBeInstanceOf(
     Error
   );
+});
+
+test("ignores a completion that predates targeted invalidation", async () => {
+  const oldRequest = deferred<{ id: string }>();
+  const newRequest = deferred<{ id: string }>();
+  const run = jest
+    .fn()
+    .mockReturnValueOnce(oldRequest.promise)
+    .mockReturnValueOnce(newRequest.promise);
+
+  const oldFlight = executeQuery("store-test", "users", run);
+  invalidateQuery("store-test", "users");
+  const newFlight = executeQuery("store-test", "users", run);
+
+  expect(run).toHaveBeenCalledTimes(2);
+  oldRequest.resolve({ id: "old" });
+  await oldFlight;
+  expect(store.getState().namespaces["store-test"].data.users).toBeUndefined();
+
+  newRequest.resolve({ id: "new" });
+  await newFlight;
+  expect(store.getState().namespaces["store-test"].data.users).toEqual({
+    id: "new",
+  });
+});
+
+test("ignores a completion that predates reset", async () => {
+  const oldRequest = deferred<{ id: string }>();
+  const newRequest = deferred<{ id: string }>();
+  const run = jest
+    .fn()
+    .mockReturnValueOnce(oldRequest.promise)
+    .mockReturnValueOnce(newRequest.promise);
+
+  const oldFlight = executeQuery("store-test", "users", run);
+  resetQueries("store-test");
+  const newFlight = executeQuery("store-test", "users", run);
+
+  expect(run).toHaveBeenCalledTimes(2);
+  oldRequest.resolve({ id: "old" });
+  await oldFlight;
+  expect(store.getState().namespaces["store-test"].data.users).toBeUndefined();
+
+  newRequest.resolve({ id: "new" });
+  await newFlight;
+  expect(store.getState().namespaces["store-test"].data.users).toEqual({
+    id: "new",
+  });
 });

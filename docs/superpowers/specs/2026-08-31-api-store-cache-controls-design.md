@@ -10,15 +10,15 @@ document the complete user-facing API in a concise README.
 `createApiStore(api)` will additionally return:
 
 ```ts
-apiStore.invalidateQuery(route, routeParams?)
+apiStore.invalidateQuery(id)
 apiStore.invalidateQueries()
 apiStore.resetQueries()
 ```
 
-`invalidateQuery` accepts the same typed route parameters as queries. A route
-without parameters accepts no argument; a parameterized route requires the
-matching parameter object. It builds the same route-level cache ID used by the
-query hooks.
+`invalidateQuery` accepts the exact resolved cache ID, such as
+`"organizations/1234/users"`. Callers therefore identify precisely which
+cached route instance to invalidate. Typed route templates remain a core
+guarantee for hook creation, but are not part of cache targeting.
 
 `invalidateQueries` and `resetQueries` operate only on the namespace derived
 from that API instance's `baseUrl`.
@@ -47,6 +47,5 @@ The README will include:
 ## Tests and verification
 
 Runtime tests will prove targeted invalidation, namespace-wide invalidation,
-and reset through the returned API instance. Compile-time tests will prove
-that `invalidateQuery` retains the typed-route requirements. `npm test` and
-`npm run build` must pass.
+and reset through the returned API instance. Type tests continue to protect
+typed route creation. `npm test` and `npm run build` must pass.

@@ -80,14 +80,12 @@ custom mutation, and the cache controls below.
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
 reset them; mutations do not invalidate queries automatically.
 
-`apiStore.invalidateQuery(route, params?)` marks one route stale. It uses the
-same route-parameter types as the generated hooks:
+`apiStore.invalidateQuery(id)` marks one exact cache ID stale. Pass the
+resolved route you want to invalidate:
 
 ```ts
 apiStore.invalidateQuery("users");
-apiStore.invalidateQuery("organizations/:organizationId/users", {
-  organizationId: "acme",
-});
+apiStore.invalidateQuery("organizations/1234/users");
 ```
 
 `apiStore.invalidateQueries()` marks every query for that API stale while

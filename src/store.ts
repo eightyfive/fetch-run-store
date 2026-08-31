@@ -133,15 +133,27 @@ export function invalidateQuery(ns: string, id: string) {
 }
 
 export function invalidateQueries(ns: string) {
-  store.setState((state) => ({
-    namespaces: {
-      ...state.namespaces,
-      [ns]: {
-        ...initialNamespace,
-        data: state.namespaces[ns]?.data ?? {},
+  store.setState((state) => {
+    const namespace = state.namespaces[ns] ?? { ...initialNamespace };
+    const ids = new Set([
+      ...Object.keys(namespace.data),
+      ...Object.keys(namespace.errors),
+      ...Object.keys(namespace.fetching),
+      ...Object.keys(namespace.stale),
+    ]);
+
+    return {
+      namespaces: {
+        ...state.namespaces,
+        [ns]: {
+          ...namespace,
+          errors: {},
+          fetching: {},
+          stale: Object.fromEntries([...ids].map((id) => [id, true])),
+        },
       },
-    },
-  }));
+    };
+  });
 }
 
 export function resetQueries(ns: string) {

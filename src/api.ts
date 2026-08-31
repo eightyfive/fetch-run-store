@@ -6,9 +6,27 @@ import {
   createReadQuery,
   createSearchQuery,
 } from "./resource";
+import {
+  invalidateQueries as invalidateQueriesForNamespace,
+  invalidateQuery as invalidateQueryForNamespace,
+  resetQueries as resetQueriesForNamespace,
+} from "./store";
+import { ExtractRouteParams, RouteParams } from "./types";
+import { buildRoute } from "./utils";
 
 export function createApiStore(api: Api) {
   const ns = api.baseUrl;
+  const invalidateRoute = <R extends string>(
+    route: R,
+    ...[routeParams]: [keyof ExtractRouteParams<R>] extends [never]
+      ? []
+      : [ExtractRouteParams<R>]
+  ) => {
+    invalidateQueryForNamespace(
+      ns,
+      buildRoute(route, (routeParams ?? {}) as RouteParams)
+    );
+  };
 
   return {
     createQuery<R extends string, Res extends object>(
@@ -19,6 +37,12 @@ export function createApiStore(api: Api) {
     },
 
     createMutation,
+
+    invalidateQuery: invalidateRoute,
+
+    invalidateQueries: () => invalidateQueriesForNamespace(ns),
+
+    resetQueries: () => resetQueriesForNamespace(ns),
 
     route<R extends string>(route: R) {
       return {
@@ -56,31 +80,3 @@ export function createApiStore(api: Api) {
     },
   };
 }
-
-// const api = Api.create("");
-
-// const apiStore = createApiStore(api);
-
-// type User = { id: number; name: string };
-// const userRoute = apiStore.route("users");
-// const useUser = userRoute.read<User>();
-// const useUsers = userRoute.list<User>();
-// const useCreateUser = userRoute.create<User, void>();
-
-// type Post = { id: number; title: string };
-// const postRoute = apiStore.route("users/:userId/posts");
-// const useUserPost = postRoute.read<Post>();
-
-// type Comment = { id: number; text: string };
-// const userPostComment = apiStore.route("users/:userId/posts/:postId/comments");
-
-// const useUserPostComment = userPostComment.read<Comment>();
-
-// function Example() {
-//   const { data: user } = useUser(123);
-//   const { data: post } = useUserPost(123, { userId: 111 });
-//   const { data: comment } = useUserPostComment(123, {
-//     userId: "bar",
-//     postId: 789,
-//   });
-// }

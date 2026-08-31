@@ -14,6 +14,7 @@
 
 - `src/api.ts` — instance-bound cache methods and typed targeted invalidation.
 - `src/api.test.ts` — runtime cache-control behavior through `createApiStore`.
+- `src/store.ts` — make whole-namespace invalidation mark every known query stale.
 - `tests/types/routes.test.ts` — compile-time targeted-invalidation route checks.
 - `README.md` — installation, usage, cache lifecycle, and design constraints.
 
@@ -21,6 +22,7 @@
 
 **Files:**
 - Modify: `src/api.ts`
+- Modify: `src/store.ts`
 - Create: `src/api.test.ts`
 - Modify: `tests/types/routes.test.ts`
 
@@ -50,7 +52,7 @@ test("invalidates one typed route in its API namespace", async () => {
 test("invalidates and resets only its API namespace", async () => {
   await executeQuery(baseUrl, "users", async () => [{ id: 1 }]);
   apiStore.invalidateQueries();
-  expect(store.getState().namespaces[baseUrl].stale.users).toBeUndefined();
+  expect(store.getState().namespaces[baseUrl].stale.users).toBe(true);
 
   apiStore.resetQueries();
   expect(store.getState().namespaces[baseUrl].data).toEqual({});
@@ -63,7 +65,14 @@ Run: `npm run test:runtime -- api.test.ts`
 
 Expected: FAIL because `createApiStore` does not expose cache-control methods.
 
-- [ ] **Step 3: Add the smallest typed façade**
+- [ ] **Step 3: Make whole-namespace invalidation actually stale**
+
+Update `invalidateQueries` in `src/store.ts` to preserve cached data while
+marking every known query id in that namespace stale. This makes active query
+hooks refetch after an application-level foreground or mutation invalidation.
+Clear transient errors and fetching flags as before.
+
+- [ ] **Step 4: Add the smallest typed façade**
 
 In `src/api.ts`, import the local `buildRoute`, `ExtractRouteParams`, and the
 three low-level cache functions with aliases. Define the targeted method as a
@@ -92,7 +101,7 @@ invalidateQueries: () => invalidateQueriesForNamespace(ns),
 resetQueries: () => resetQueriesForNamespace(ns),
 ```
 
-- [ ] **Step 4: Add compile-time route assertions**
+- [ ] **Step 5: Add compile-time route assertions**
 
 Append to `tests/types/routes.test.ts`:
 
@@ -109,16 +118,16 @@ api.invalidateQuery("organizations/:organizationId/users", {
 });
 ```
 
-- [ ] **Step 5: Verify runtime and type tests**
+- [ ] **Step 6: Verify runtime and type tests**
 
 Run: `npm run test:runtime -- api.test.ts && npm run test:types`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit the cache façade**
+- [ ] **Step 7: Commit the cache façade**
 
 ```bash
-git add src/api.ts src/api.test.ts tests/types/routes.test.ts
+git add src/api.ts src/api.test.ts src/store.ts tests/types/routes.test.ts
 git commit -m "feat: bind cache controls to API stores"
 ```
 

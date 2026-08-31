@@ -88,9 +88,10 @@ apiStore.invalidateQuery("users");
 apiStore.invalidateQuery("organizations/1234/users");
 ```
 
-`apiStore.invalidateQueries()` marks every query for that API stale while
-keeping its cached data. Active hooks refetch; inactive hooks refetch when
-they next mount. `apiStore.resetQueries()` clears that API's cache entirely.
+`apiStore.invalidateQueries()` invalidates every query for that API while
+keeping its cached data available until a refetch completes. Active hooks
+refetch; inactive hooks refetch when they next mount. `apiStore.resetQueries()`
+clears that API's cache entirely.
 
 For example, invalidate after a successful mutation observed by `fetch-run`:
 

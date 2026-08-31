@@ -23,7 +23,9 @@
   "license": "ISC",
   "files": [
     "dist",
-    "src"
+    "src",
+    "!dist/**/*.test.*",
+    "!src/**/*.test.*"
   ],
   "publishConfig": {
     "registry": "https://registry.npmjs.org"

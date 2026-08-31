@@ -16,9 +16,8 @@
     "store",
     "react-query"
   ],
-  "browser": "./dist/index.js",
   "main": "./dist/index.js",
-  "react-native": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "author": "0x55 <0xfiftyfive@gmail.com>",
   "license": "ISC",
   "files": [

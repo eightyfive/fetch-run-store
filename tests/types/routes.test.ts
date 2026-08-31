@@ -32,14 +32,3 @@ const useCreateUser = api
 useCreateUser({ organizationId: "acme" });
 // @ts-expect-error mutation routes require their route parameters
 useCreateUser();
-
-api.invalidateQuery("health");
-api.invalidateQuery("organizations/:organizationId/users", {
-  organizationId: "acme",
-});
-// @ts-expect-error parameterized routes require their parameters
-api.invalidateQuery("organizations/:organizationId/users");
-// @ts-expect-error route parameter values are string or number
-api.invalidateQuery("organizations/:organizationId/users", {
-  organizationId: false,
-});

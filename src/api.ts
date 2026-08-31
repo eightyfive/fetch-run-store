@@ -11,22 +11,9 @@ import {
   invalidateQuery as invalidateQueryForNamespace,
   resetQueries as resetQueriesForNamespace,
 } from "./store";
-import { ExtractRouteParams, RouteParams } from "./types";
-import { buildRoute } from "./utils";
 
 export function createApiStore(api: Api) {
   const ns = api.baseUrl;
-  const invalidateRoute = <R extends string>(
-    route: R,
-    ...[routeParams]: [keyof ExtractRouteParams<R>] extends [never]
-      ? []
-      : [ExtractRouteParams<R>]
-  ) => {
-    invalidateQueryForNamespace(
-      ns,
-      buildRoute(route, (routeParams ?? {}) as RouteParams)
-    );
-  };
 
   return {
     createQuery<R extends string, Res extends object>(
@@ -38,7 +25,7 @@ export function createApiStore(api: Api) {
 
     createMutation,
 
-    invalidateQuery: invalidateRoute,
+    invalidateQuery: (id: string) => invalidateQueryForNamespace(ns, id),
 
     invalidateQueries: () => invalidateQueriesForNamespace(ns),
 

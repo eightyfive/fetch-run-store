@@ -7,10 +7,10 @@ const apiStore = createApiStore(Api.create(baseUrl));
 
 afterEach(() => resetQueries(baseUrl));
 
-test("invalidates one route in its API namespace", async () => {
+test("invalidates one resolved cache ID in its API namespace", async () => {
   await executeQuery(baseUrl, "users/42", async () => ({ id: 42 }));
 
-  apiStore.invalidateQuery("users/:userId", { userId: 42 });
+  apiStore.invalidateQuery("users/42");
 
   expect(store.getState().namespaces[baseUrl].stale["users/42"]).toBe(true);
 });

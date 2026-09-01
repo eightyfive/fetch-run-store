@@ -24,17 +24,15 @@ export function createQuery<R extends string, Res extends object>(
     routeParams: _RouteParams = {} as _RouteParams,
     searchParams?: URLSearchParams
   ): Query<Res> => {
-    // Search parameters affect the request URL, but cache and flight identity
-    // deliberately remain route-based.
-    const id = buildRoute(route, routeParams);
-    const url = !searchParams ? id : `${id}?${searchParams}`;
+    const routeId = buildRoute(route, routeParams);
+    const queryId = !searchParams ? routeId : `${routeId}?${searchParams}`;
 
     // State
-    const data = useApiStore(ns, (s) => s.data[id] as Res | undefined);
+    const data = useApiStore(ns, (s) => s.data[queryId] as Res | undefined);
     const { error, isFetching, isFresh } = useApiStore(ns, (s) => ({
-      error: s.errors[id] ?? null,
-      isFetching: s.fetching[id] === true,
-      isFresh: s.fresh[id] === true,
+      error: s.errors[queryId] ?? null,
+      isFetching: s.fetching[queryId] === true,
+      isFresh: s.fresh[queryId] === true,
     }));
 
     // Computed
@@ -42,12 +40,12 @@ export function createQuery<R extends string, Res extends object>(
 
     // Methods
     const invalidate = useCallback(() => {
-      invalidateQuery(ns, id);
-    }, [id, ns]);
+      invalidateQuery(ns, queryId);
+    }, [ns, queryId]);
 
     const refetch = useCallback(() => {
-      return executeQuery(ns, id, () => execute(url));
-    }, [execute, id, ns, url]);
+      return executeQuery(ns, queryId, () => execute(queryId));
+    }, [execute, ns, queryId]);
 
     // Effects
     useEffect(() => {

@@ -18,7 +18,7 @@ bundler and a runtime with Fetch and URLSearchParams. TypeScript declarations
 are included; no separate types package is needed for fetch-run-store.
 
 The first release is 0.1.0: the API may evolve before 1.0.0. See
-[the changelog](CHANGELOG.md) and [release instructions](RELEASING.md).
+[the changelog](CHANGELOG.md).
 
 ## Usage
 

@@ -30,7 +30,6 @@
   "bugs": "https://github.com/eightyfive/fetch-run-store/issues",
   "files": [
     "CHANGELOG.md",
-    "RELEASING.md",
     "dist",
     "src",
     "!dist/**/*.test.*",

@@ -1,6 +1,6 @@
 {
   "name": "fetch-run-store",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "🐻 Bear necessities for api query management in react",
   "scripts": {
     "build": "rm -rf dist && tsc --project .",

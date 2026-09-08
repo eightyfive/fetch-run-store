@@ -69,15 +69,6 @@ test("sets exact cache entries without affecting other namespaces", () => {
   other.resetQueries();
 });
 
-test("undefined clears cached data and keeps the entry fresh", () => {
-  apiStore.setQueryData("users", [{ id: 1 }]);
-  expect(apiStore.setQueryData("users", undefined)).toBeUndefined();
-  const state = store.getState().namespaces[baseUrl];
-  expect(state.data.users).toBeUndefined();
-  expect(state.fresh.users).toBe(true);
-  expect(state.fetching.users).toBe(false);
-});
-
 test("setting data clears a previous query error", async () => {
   await expect(executeQuery(baseUrl, "users", async () => {
     throw new Error("offline");

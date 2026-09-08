@@ -48,8 +48,10 @@ useSearch(new URLSearchParams());
 useSearch(undefined, { organization: "acme" });
 api.route("users").search<User>()();
 
-const cachedUser: User | undefined = api.setQueryData("users/42", { id: 42, name: "Ada" });
+const cachedUser: User = api.setQueryData("users/42", { id: 42, name: "Ada" });
+// @ts-expect-error undefined is not a replacement value
 api.setQueryData<User>("users/42", undefined);
+// @ts-expect-error undefined is rejected without an explicit type too
 api.setQueryData("leagues", undefined);
 // @ts-expect-error values must match the explicit response type
 api.setQueryData<User>("users/42", { id: "42", name: "Ada" });

@@ -6,11 +6,12 @@ minor releases for breaking changes while on 0.x.
 
 ## Prepare and verify
 
-1. Merge the release-preparation PR after all CI jobs pass. CI checks Node
-   22/24 and installs the actual tarball with React 18/19.
+1. Review and merge the release-preparation PR after local validation passes.
 2. Check out `main`, run `git pull --ff-only`, and confirm `git status --short`
    is empty. Confirm `package.json` and the lockfile carry the intended version.
-3. Run `npm ci`, `npm test`, and `npm run test:package`. The package test creates
+3. Run `npm ci`, `npm test`, and `npm run test:package`. Also run
+   `TEST_REACT_VERSION=18 npm run test:package` to verify React 18 (the default
+   package test uses React 19). The package test creates
    a temporary source snapshot without `dist`, packs it, installs it into a
    consumer, compiles the route type tests against the installed declarations,
    and checks React rendering and browser bundling.

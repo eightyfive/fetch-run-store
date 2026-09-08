@@ -108,10 +108,12 @@ immediately updates subscribed hooks. Pass a replacement value:
 apiStore.setQueryData<User>("users/42", { id: 42, name: "Ada" });
 ```
 
-Writes mark the entry fresh, clear its
-error and fetching state, and ignore results from older in-flight reads without
-cancelling their network requests. Search variants and other routes are unchanged. Since IDs are strings, response types are not inferred
-from route definitions. Updater callbacks and `undefined` are not supported.
+Only cached data changes: freshness, errors, and fetching state are preserved.
+Pending requests continue normally, and successful server responses overwrite
+optimistic data. Failed requests report their errors while retaining cached data.
+Search variants and other routes are unchanged. Since IDs are strings, response
+types are not inferred from route definitions. Updater callbacks and `undefined`
+are not supported.
 For optimistic mutations, retain the previous value for rollback on failure and
 invalidate the entry when ready to reconcile with the server.
 

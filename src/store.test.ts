@@ -112,23 +112,37 @@ test("ignores a completion that predates reset", async () => {
 });
 
 test.each(["resolve", "reject"] as const)(
-  "optimistic writes ignore older request %s and allow subsequent refetches",
+  "optimistic writes preserve pending requests and their %s outcome",
   async (outcome) => {
-    const old = deferred<{ id: string }>();
-    const flight = executeQuery("store-test", "users", () => old.promise);
+    const request = deferred<{ id: string }>();
+    const run = jest.fn(() => request.promise);
+    const flight = executeQuery("store-test", "users", run);
+    const before = store.getState().namespaces["store-test"];
     setQueryData("store-test", "users", { id: "optimistic" });
+    const optimistic = store.getState().namespaces["store-test"];
+    expect(optimistic.data.users).toEqual({ id: "optimistic" });
+    expect(optimistic.fetching.users).toBe(true);
+    expect(optimistic.fetching).toBe(before.fetching);
+    expect(optimistic.errors).toBe(before.errors);
+    expect(optimistic.fresh).toBe(before.fresh);
+    expect(optimistic.revision).toBe(before.revision);
+    expect(executeQuery("store-test", "users", run)).toBe(flight);
+    expect(run).toHaveBeenCalledTimes(1);
+
     if (outcome === "resolve") {
-      old.resolve({ id: "old" });
+      request.resolve({ id: "server" });
       await flight;
     } else {
-      old.reject(new Error("old failure"));
-      await expect(flight).rejects.toThrow("old failure");
+      request.reject(new Error("server failure"));
+      await expect(flight).rejects.toThrow("server failure");
     }
     const state = store.getState().namespaces["store-test"];
-    expect(state.data.users).toEqual({ id: "optimistic" });
-    expect(state.errors.users).toBeNull();
+    expect(state.data.users).toEqual({
+      id: outcome === "resolve" ? "server" : "optimistic",
+    });
+    expect(state.errors.users).toEqual(
+      outcome === "resolve" ? null : new Error("server failure"),
+    );
     expect(state.fetching.users).toBe(false);
-    await executeQuery("store-test", "users", async () => ({ id: "server" }));
-    expect(store.getState().namespaces["store-test"].data.users).toEqual({ id: "server" });
   },
 );

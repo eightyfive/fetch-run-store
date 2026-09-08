@@ -60,19 +60,19 @@ test("sets exact cache entries without affecting other namespaces", () => {
   const state = store.getState().namespaces[baseUrl];
   expect(state.data.users).toEqual([{ id: 1 }, { id: 3 }]);
   expect(state.data["users?name=alice"]).toEqual([{ id: 2 }]);
-  expect(state.fresh.users).toBe(true);
-  expect(state.fetching.users).toBe(false);
-  expect(state.errors.users).toBeNull();
+  expect(state.fresh.users).toBeUndefined();
+  expect(state.fetching.users).toBeUndefined();
+  expect(state.errors.users).toBeUndefined();
   const other = createApiStore(Api.create("https://isolated.example.test"));
   other.setQueryData("users", [{ id: 99 }]);
   expect(store.getState().namespaces[baseUrl].data.users).toEqual([{ id: 1 }, { id: 3 }]);
   other.resetQueries();
 });
 
-test("setting data clears a previous query error", async () => {
+test("setting data preserves a previous query error", async () => {
   await expect(executeQuery(baseUrl, "users", async () => {
     throw new Error("offline");
   })).rejects.toThrow("offline");
   apiStore.setQueryData("users", [{ id: 1 }]);
-  expect(store.getState().namespaces[baseUrl].errors.users).toBeNull();
+  expect(store.getState().namespaces[baseUrl].errors.users).toEqual(new Error("offline"));
 });

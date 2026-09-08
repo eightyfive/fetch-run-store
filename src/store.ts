@@ -166,8 +166,6 @@ export function setQueryData<T extends object>(
   id: string,
   data: T,
 ): void {
-  // Supersede older reads without cancelling their underlying requests.
-  invalidateFlight(flightKey(ns, id));
   store.setState((state) => {
     const namespace = state.namespaces[ns] ?? { ...initialNamespace };
 
@@ -177,9 +175,6 @@ export function setQueryData<T extends object>(
         [ns]: {
           ...namespace,
           data: { ...namespace.data, [id]: data },
-          errors: { ...namespace.errors, [id]: null },
-          fetching: { ...namespace.fetching, [id]: false },
-          fresh: { ...namespace.fresh, [id]: true },
         },
       },
     };

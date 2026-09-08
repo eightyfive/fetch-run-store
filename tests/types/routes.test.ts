@@ -49,23 +49,38 @@ useSearch(undefined, { organization: "acme" });
 api.route("users").search<User>()();
 
 const [, , , setCreatedUser] = useCreateUser({ organizationId: "acme" });
+setCreatedUser(42, { id: 42, name: "Ada" });
+// @ts-expect-error create setData requires a target ID
 setCreatedUser({ id: 42, name: "Ada" });
-// @ts-expect-error data must include its resource ID
-setCreatedUser({ name: "Ada" });
 // @ts-expect-error data must match the mutation response type
-setCreatedUser({ id: "42", name: "Ada" });
+setCreatedUser(42, { id: "42", name: "Ada" });
 // @ts-expect-error undefined is not resource data
-setCreatedUser(undefined);
+setCreatedUser(42, undefined);
 const useUpdateUser = api.route("users").update<{ name: string }, User>();
-const [, , , setUpdatedUser] = useUpdateUser();
+const [, , , setUpdatedUser] = useUpdateUser(42);
 setUpdatedUser({ id: 42, name: "Grace" });
+// @ts-expect-error update requires a resource ID
+useUpdateUser();
 // @ts-expect-error update data must match the response type
 setUpdatedUser([{ id: 42, name: "Grace" }]);
-// @ts-expect-error create responses must have a resource ID
-api.route("users").create<{ name: string }, { name: string }>();
-// @ts-expect-error update responses must have a string or number ID
-api.route("users").update<{ name: string }, { id: boolean }>();
-// @ts-expect-error create responses must be resources, not void
-api.route("users").create<{ name: string }, void>();
+const nested = api.route("organizations/:organizationId/users");
+const useNestedUpdate = nested.update<{ name: string }, { name: string }>();
+useNestedUpdate(42, { organizationId: "acme" })[3]({ name: "Ada" });
+// @ts-expect-error parent params are required for updates
+useNestedUpdate(42);
+// @ts-expect-error update ID must be a string or number
+useNestedUpdate({ id: 42 }, { organizationId: "acme" });
+const useNestedDelete = nested.delete();
+useNestedDelete(42, { organizationId: "acme" });
+// @ts-expect-error parent params are required for deletes
+useNestedDelete(42);
+// @ts-expect-error delete ID must be a string or number
+useNestedDelete({ id: 42 }, { organizationId: "acme" });
+const useDelete = api.route("users").delete();
+useDelete(42);
+// @ts-expect-error delete requires a resource ID
+useDelete();
+api.route("users").create<{ name: string }, { name: string }>()()[3](42, { name: "Ada" });
+api.route("users").update<{ name: string }, void>()(42);
 // @ts-expect-error global untyped cache writes are not exposed
 api.setQueryData("users", []);

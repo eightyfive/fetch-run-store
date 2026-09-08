@@ -82,16 +82,32 @@ test.each(["create", "update"] as const)(
     const get = jest.spyOn(api, "get").mockReturnValue(request.promise);
     const resource = apiStore.route("organizations/:organizationId/users");
     const useRead = resource.read<User>();
-    const useMutation = resource[method]<{ name: string }, User>();
+    const useCreate = resource.create<{ name: string }, User>();
+    const useUpdate = resource.update<{ name: string }, User>();
+    const useMutation = method === "create"
+      ? () => {
+          const [mutate, pending, error, setData] = useCreate(params);
+          return [mutate, pending, error, setData] as const;
+        }
+      : () => {
+          const [mutate, pending, error, setData] = useUpdate("42/1", params);
+          return [mutate, pending, error, setData] as const;
+        };
     const params = { organizationId: "a/b" };
     const key = "organizations/a%2Fb/users/42%2F1";
     await executeQuery(baseUrl, "organizations/a%2Fb/users", async () => []);
     await executeQuery(baseUrl, `${key}?details=1`, async () => ({ name: "variant" }));
     const read = renderHook(() => useRead("42/1", params));
-    const mutation = renderHook(() => useMutation(params));
+    const mutation = renderHook(() => useMutation());
     const setData = mutation.result.current[3];
 
-    act(() => setData({ id: "42/1", name: "optimistic" }));
+    act(() => {
+      if (method === "create") {
+        (setData as (id: string, data: User) => void)("42/1", { id: "42/1", name: "optimistic" });
+      } else {
+        (setData as (data: User) => void)({ id: "42/1", name: "optimistic" });
+      }
+    });
     expect(read.result.current.data).toEqual({ id: "42/1", name: "optimistic" });
     expect(read.result.current.isFetching).toBe(true);
     expect(mutation.result.current[1]).toBe(false);
@@ -122,18 +138,73 @@ test("setData follows parent route parameters and preserves existing errors", as
     ({ organizationId }) => useCreate({ organizationId }),
     { initialProps: { organizationId: "first" } },
   );
-  act(() => result.current[3]({ id: 1, name: "first" }));
+  act(() => result.current[3](1, { id: 1, name: "first" }));
   rerender({ organizationId: "second" });
   const error = new Error("offline");
   await expect(executeQuery(baseUrl, "organizations/second/users/1", async () => {
     throw error;
   })).rejects.toBe(error);
-  act(() => result.current[3]({ id: 1, name: "second" }));
+  act(() => result.current[3](1, { id: 1, name: "second" }));
   const state = store.getState().namespaces[baseUrl];
   expect(state.data["organizations/first/users/1"]).toEqual({ id: 1, name: "first" });
   expect(state.data["organizations/second/users/1"]).toEqual({ id: 1, name: "second" });
   expect(state.errors["organizations/second/users/1"]).toBe(error);
   expect(state.fresh["organizations/second/users/1"]).toBeUndefined();
+  unmount();
+  apiStore.resetQueries();
+});
+
+test("update and delete use the read URL and follow changed IDs and parents", async () => {
+  const baseUrl = "https://resource-routes.example.test";
+  const api = Api.create(baseUrl);
+  const get = jest.spyOn(api, "get").mockResolvedValue({ name: "server" });
+  const put = jest.spyOn(api, "put").mockResolvedValue({ name: "updated" });
+  const remove = jest.spyOn(api, "delete").mockResolvedValue(undefined);
+  const apiStore = createApiStore(api);
+  const resource = apiStore.route("organizations/:organizationId/users");
+  const useRead = resource.read<{ name: string }>();
+  const useUpdate = resource.update<{ name: string }, { name: string }>();
+  const useDelete = resource.delete();
+  const { result, rerender, unmount } = renderHook(
+    ({ id, organizationId }) => ({
+      read: useRead(id, { organizationId }),
+      update: useUpdate(id, { organizationId }),
+      remove: useDelete(id, { organizationId }),
+    }),
+    { initialProps: { id: "42/1", organizationId: "a/b" } },
+  );
+  for (const [id, organizationId] of [["42/1", "a/b"], ["7?x", "second"]]) {
+    rerender({ id, organizationId });
+    const url = `organizations/${encodeURIComponent(organizationId)}/users/${encodeURIComponent(id)}`;
+    await act(async () => {
+      await result.current.update[0]({ name: "updated" });
+      await result.current.remove[0]();
+    });
+    expect(get).toHaveBeenLastCalledWith(url);
+    expect(put).toHaveBeenLastCalledWith(url, { name: "updated" });
+    expect(remove).toHaveBeenLastCalledWith(url);
+    act(() => result.current.update[3]({ name: "optimistic" }));
+    expect(result.current.read.data).toEqual({ name: "optimistic" });
+  }
+  expect(store.getState().namespaces[baseUrl].data["organizations/a%2Fb/users/42%2F1"]).toEqual({ name: "optimistic" });
+  unmount();
+  apiStore.resetQueries();
+});
+
+test("create posts to the collection and writes response data to the explicit ID", async () => {
+  const api = Api.create("https://create-route.example.test");
+  const post = jest.spyOn(api, "post").mockResolvedValue({ name: "created" });
+  const apiStore = createApiStore(api);
+  const useCreate = apiStore.route("users").create<{ name: string }, { name: string }>();
+  const { result, unmount } = renderHook(() => useCreate());
+  await act(async () => {
+    const data = await result.current[0]({ name: "created" });
+    result.current[3](42, data);
+  });
+  expect(post).toHaveBeenCalledWith("users", { name: "created" });
+  expect(store.getState().namespaces[api.baseUrl].data).toEqual({
+    "users/42": { name: "created" },
+  });
   unmount();
   apiStore.resetQueries();
 });

@@ -101,32 +101,46 @@ when passing query-string parameters via `URLSearchParams`.
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
 reset them; mutations do not invalidate queries automatically.
 
-`create()` and `update()` mutation hooks expose `setData(data)` as their
-fourth tuple item. Their response types must include `id: string | number`.
-The setter uses that response type and `data.id` to write only the
-individual resource key: a hook defined on `"leagues"` writes `"leagues/:id"`,
-the same entry used by `route("leagues").read<League>()`. Define these hooks on
-the collection route; parent route parameters are resolved from the hook's
-arguments, and the resource ID from `data.id` is URL-encoded.
+`read()`, `update()`, and `delete()` hooks share the same arguments:
+`(id, routeParams?)`. Parent route parameters are required when the collection
+route declares them. All three target the individual resource at `resource/:id`:
+
+```ts
+const users = apiStore.route("organizations/:organizationId/users");
+const useUser = users.read<User>();
+const useUpdateUser = users.update<{ name: string }, User>();
+const useDeleteUser = users.delete();
+
+// Inside a component:
+useUser(42, { organizationId: "acme" });
+useUpdateUser(42, { organizationId: "acme" });
+useDeleteUser(42, { organizationId: "acme" });
+```
+
+Create and update hooks expose a typed cache setter as their fourth tuple item:
+create's `setData(id, data)` takes an explicit resource ID, while update's
+`setData(data)` uses the ID already bound to the hook. Both accept the mutation's
+response type; that type does not need an `id` field. Parent parameters and
+resource IDs are URL-encoded just as they are for reads.
 
 ```tsx
 const leagues = apiStore.route("leagues");
 const useCreateLeague = leagues.create<{ name: string }, League>();
-const useUpdateLeague = leagues.update<{ id: League["id"]; name: string }, League>();
+const useUpdateLeague = leagues.update<{ name: string }, League>();
 
-// Inside a component:
+// Inside a component with an existing league:
 const [createLeague, isCreating, createError, setCreatedData] = useCreateLeague();
-const [updateLeague, isUpdating, updateError, setUpdatedData] = useUpdateLeague();
+const [updateLeague, isUpdating, updateError, setUpdatedData] = useUpdateLeague(league.id);
 
 async function create(name: string) {
-  const league = await createLeague({ name });
-  setCreatedData(league);
+  const created = await createLeague({ name });
+  setCreatedData(created.id, created);
 }
 
-async function rename(league: League, name: string) {
+async function rename(name: string) {
   setUpdatedData({ ...league, name });
   try {
-    await updateLeague({ id: league.id, name });
+    await updateLeague({ name });
   } catch (error) {
     setUpdatedData(league);
     throw error;
@@ -141,10 +155,9 @@ freshness, errors, and fetching state are preserved. Pending requests continue
 normally, and successful server responses overwrite optimistic data. Failed
 requests report their errors while retaining cached data. Lists, search variants,
 and other resources are unchanged; invalidate lists separately when needed.
-The setter does not change the mutation's request URL or send a request itself.
-Updater callbacks and `undefined` are not supported. Use a custom mutation for
-endpoints returning no resource or a response without an ID. Custom mutations
-and `delete()` hooks retain their existing three-item tuples.
+The setter sends no request. Updater callbacks and `undefined` are not supported.
+For a `void` response, there is no resource data type to pass to the setter.
+Custom mutations and `delete()` hooks retain their existing three-item tuples.
 
 `apiStore.invalidateQuery(id)` marks cache entries stale. Pass a resolved route
 to invalidate that route and every search variant; pass a resolved route with

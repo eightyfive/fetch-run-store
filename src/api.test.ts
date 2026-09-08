@@ -54,7 +54,7 @@ test("invalidates and resets only its API namespace", async () => {
 
 test("sets exact cache entries without affecting other namespaces", () => {
   apiStore.setQueryData("users?name=alice", [{ id: 2 }]);
-  expect(apiStore.setQueryData("users", [{ id: 1 }])).toEqual([{ id: 1 }]);
+  apiStore.setQueryData("users", [{ id: 1 }]);
   apiStore.setQueryData("users", [{ id: 1 }, { id: 3 }]);
 
   const state = store.getState().namespaces[baseUrl];

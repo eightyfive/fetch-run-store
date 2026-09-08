@@ -165,7 +165,7 @@ export function setQueryData<T extends object>(
   ns: string,
   id: string,
   data: T,
-): T {
+): void {
   // Supersede older reads without cancelling their underlying requests.
   invalidateFlight(flightKey(ns, id));
   store.setState((state) => {
@@ -184,8 +184,6 @@ export function setQueryData<T extends object>(
       },
     };
   });
-
-  return data;
 }
 
 export function invalidateQuery(ns: string, id: string) {

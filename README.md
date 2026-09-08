@@ -108,7 +108,7 @@ immediately updates subscribed hooks. Pass a replacement value:
 apiStore.setQueryData<User>("users/42", { id: 42, name: "Ada" });
 ```
 
-The method returns the written value. Writes mark the entry fresh, clear its
+Writes mark the entry fresh, clear its
 error and fetching state, and ignore results from older in-flight reads without
 cancelling their network requests. Search variants and other routes are unchanged. Since IDs are strings, response types are not inferred
 from route definitions. Updater callbacks and `undefined` are not supported.

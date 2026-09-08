@@ -164,15 +164,8 @@ export function executeQuery(
 export function setQueryData<T extends object>(
   ns: string,
   id: string,
-  updater: T | ((previous: T | undefined) => T | undefined),
+  data: T | undefined,
 ): T | undefined {
-  const previous = store.getState().namespaces[ns]?.data[id] as T | undefined;
-  const data = typeof updater === "function" ? updater(previous) : updater;
-
-  if (data === undefined) {
-    return previous;
-  }
-
   // Supersede older reads without cancelling their underlying requests.
   invalidateFlight(flightKey(ns, id));
   store.setState((state) => {

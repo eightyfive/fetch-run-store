@@ -52,13 +52,10 @@ test("invalidates and resets only its API namespace", async () => {
   expect(store.getState().namespaces[baseUrl].data).toEqual({});
 });
 
-test("sets exact cache entries and applies updaters to the latest value", () => {
+test("sets exact cache entries without affecting other namespaces", () => {
   apiStore.setQueryData("users?name=alice", [{ id: 2 }]);
   expect(apiStore.setQueryData("users", [{ id: 1 }])).toEqual([{ id: 1 }]);
-  apiStore.setQueryData<{ id: number }[]>("users", (previous) => [
-    ...previous!,
-    { id: 3 },
-  ]);
+  apiStore.setQueryData("users", [{ id: 1 }, { id: 3 }]);
 
   const state = store.getState().namespaces[baseUrl];
   expect(state.data.users).toEqual([{ id: 1 }, { id: 3 }]);
@@ -67,19 +64,18 @@ test("sets exact cache entries and applies updaters to the latest value", () => 
   expect(state.fetching.users).toBe(false);
   expect(state.errors.users).toBeNull();
   const other = createApiStore(Api.create("https://isolated.example.test"));
-  const updater = jest.fn(() => undefined);
-  other.setQueryData("users", updater);
-  expect(updater).toHaveBeenCalledWith(undefined);
+  other.setQueryData("users", [{ id: 99 }]);
+  expect(store.getState().namespaces[baseUrl].data.users).toEqual([{ id: 1 }, { id: 3 }]);
+  other.resetQueries();
 });
 
-test("undefined updaters leave the store unchanged and can seed missing data", () => {
-  const state = store.getState();
-  expect(apiStore.setQueryData("missing", () => undefined)).toBeUndefined();
-  expect(store.getState()).toBe(state);
-  apiStore.setQueryData<{ id: number }>("missing", (previous) => previous ?? { id: 1 });
-  const seeded = store.getState();
-  expect(apiStore.setQueryData("missing", () => undefined)).toEqual({ id: 1 });
-  expect(store.getState()).toBe(seeded);
+test("undefined clears cached data and keeps the entry fresh", () => {
+  apiStore.setQueryData("users", [{ id: 1 }]);
+  expect(apiStore.setQueryData("users", undefined)).toBeUndefined();
+  const state = store.getState().namespaces[baseUrl];
+  expect(state.data.users).toBeUndefined();
+  expect(state.fresh.users).toBe(true);
+  expect(state.fetching.users).toBe(false);
 });
 
 test("setting data clears a previous query error", async () => {

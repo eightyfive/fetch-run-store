@@ -49,10 +49,9 @@ useSearch(undefined, { organization: "acme" });
 api.route("users").search<User>()();
 
 const cachedUser: User | undefined = api.setQueryData("users/42", { id: 42, name: "Ada" });
-api.setQueryData<User>("users/42", (previous) =>
-  previous ? { ...previous, name: "Grace" } : undefined,
-);
+api.setQueryData<User>("users/42", undefined);
+api.setQueryData("leagues", undefined);
 // @ts-expect-error values must match the explicit response type
 api.setQueryData<User>("users/42", { id: "42", name: "Ada" });
-// @ts-expect-error updater results must match the response type
-api.setQueryData<User>("users/42", (previous) => ({ ...previous, id: "42" }));
+// @ts-expect-error updater callbacks are not supported
+api.setQueryData<User>("users/42", (previous: User | undefined) => previous);

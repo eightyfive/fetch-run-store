@@ -28,8 +28,8 @@ export function createApiStore(api: Api) {
 
     setQueryData: <T extends object>(
       id: string,
-      updater: T | ((previous: T | undefined) => T | undefined),
-    ) => setQueryDataForNamespace<T>(ns, id, updater),
+      data: T | undefined,
+    ) => setQueryDataForNamespace<T>(ns, id, data),
 
     invalidateQuery: (id: string) => invalidateQueryForNamespace(ns, id),
 

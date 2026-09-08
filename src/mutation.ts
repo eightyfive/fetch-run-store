@@ -34,17 +34,15 @@ export function createMutation<
 
           return res;
         } catch (err) {
-          if (err instanceof Error) {
-            setError(err);
-          }
-
-          // Always throw
-          throw err;
+          const normalizedError =
+            err instanceof Error ? err : new Error(String(err));
+          setError(normalizedError);
+          throw normalizedError;
         } finally {
           setPendingCount((count) => count - 1);
         }
       },
-      [execute, url]
+      [execute, url],
     );
 
     // Public

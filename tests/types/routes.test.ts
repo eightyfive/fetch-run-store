@@ -7,19 +7,21 @@ const api = createApiStore(Api.create("https://api.example.test"));
 
 const useHealth = api.route("health").list<User>();
 useHealth();
+// @ts-expect-error list hooks without path parameters take no arguments
+useHealth(new URLSearchParams({ page: "1" }));
+// @ts-expect-error query-string parameters belong to search hooks
+useHealth(undefined, new URLSearchParams({ page: "1" }));
 
-const useUsers = api
-  .route("organizations/:organizationId/users")
-  .list<User>();
+const useUsers = api.route("organizations/:organizationId/users").list<User>();
 useUsers({ organizationId: 1 });
+// @ts-expect-error list hooks accept path parameters only
+useUsers({ organizationId: 1 }, new URLSearchParams({ page: "1" }));
 // @ts-expect-error route parameters are required
 useUsers();
 // @ts-expect-error unknown keys cannot replace required route parameters
 useUsers({ organization: 1 });
 
-const useUser = api
-  .route("organizations/:organizationId/users")
-  .read<User>();
+const useUser = api.route("organizations/:organizationId/users").read<User>();
 useUser(42, { organizationId: "acme" });
 // @ts-expect-error parent route parameters are required for reads
 useUser(42);
@@ -32,3 +34,16 @@ const useCreateUser = api
 useCreateUser({ organizationId: "acme" });
 // @ts-expect-error mutation routes require their route parameters
 useCreateUser();
+
+const useSearch = api
+  .route("organizations/:organizationId/users")
+  .search<User>();
+useSearch(new URLSearchParams(), { organizationId: "acme" });
+useSearch(undefined, { organizationId: "acme" });
+// @ts-expect-error search routes require their route parameters
+useSearch();
+// @ts-expect-error search parameters do not substitute for route parameters
+useSearch(new URLSearchParams());
+// @ts-expect-error unknown route parameters are rejected
+useSearch(undefined, { organization: "acme" });
+api.route("users").search<User>()();

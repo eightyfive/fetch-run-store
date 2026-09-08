@@ -13,7 +13,16 @@ it is used.
 npm install fetch-run fetch-run-store
 ```
 
-React is a peer dependency.
+React 18 or 19 and fetch-run 3 are peer dependencies. Use a modern browser
+bundler and a runtime with Fetch and URLSearchParams. TypeScript declarations
+are included; no separate types package is needed for fetch-run-store.
+
+The planned first release is 0.1.0: the API may evolve before 1.0.0. See
+[the changelog](CHANGELOG.md).
+
+Maintainers release with `npm run release` (local `np`, requiring Node 22+ and
+npm 10+). The package stays at 0.0.0 until `np` prompts for the first version;
+select 0.1.0 when publishing from `main`.
 
 ## Usage
 
@@ -38,6 +47,12 @@ export const useUpdateUser = users.update<{ name: string }, User>();
 const organizationUsers = apiStore.route("organizations/:organizationId/users");
 export const useOrganizationUsers = organizationUsers.list<User>();
 ```
+
+Caches are shared by `api.baseUrl`: separate instances with the same base URL
+share data, in-flight requests, invalidation, and reset. Applications own the
+cache lifecycle, including resetting shared caches after authentication changes.
+The cache is module-global; server applications must account for that sharing
+between requests to the same base URL.
 
 Use those hooks in components:
 
@@ -77,6 +92,10 @@ function OrganizationUsers({ organizationId }: { organizationId: string }) {
 CRUDL hooks, `createQuery()` for a custom query, `createMutation()` for a
 custom mutation, and the cache controls below.
 
+`list()` hooks accept only the path parameters declared in the route (or no
+arguments for a route without parameters). Use `search()` hooks explicitly
+when passing query-string parameters via `URLSearchParams`.
+
 ## Cache lifecycle
 
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
@@ -91,6 +110,13 @@ apiStore.invalidateQuery("users");
 apiStore.invalidateQuery("organizations/1234/users");
 apiStore.invalidateQuery("users?name=Ada");
 ```
+
+Matching is literal: `users` does not match `users/42` or `usersettings`, and
+wildcards are not supported. Empty search parameters share the route key.
+Nonempty keys use `URLSearchParams.toString()` as-is, including parameter order.
+Changing search parameters fetches an uncached variant automatically; debounce
+the parameters passed to the hook when needed. A hook's `invalidate()` follows
+the same matching rules (an empty-search hook invalidates all route variants).
 
 `apiStore.invalidateQueries()` invalidates every query for that API while
 keeping its cached data available until a refetch completes. Active hooks

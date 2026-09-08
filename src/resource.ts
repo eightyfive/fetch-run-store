@@ -43,9 +43,13 @@ export function createListQuery<R extends string, Res extends object>(
 
   type _RouteParams = ExtractRouteParams<R>;
 
-  return function useListQuery(routeParams: _RouteParams = {} as _RouteParams) {
+  function useListQuery(routeParams: _RouteParams = {} as _RouteParams) {
     return useQuery(routeParams);
-  };
+  }
+  type UseListQuery = [keyof _RouteParams] extends [never]
+    ? () => Query<Res>
+    : (routeParams: _RouteParams) => Query<Res>;
+  return useListQuery as UseListQuery;
 }
 
 // SEARCH
@@ -63,10 +67,17 @@ export function createSearchQuery<R extends string, Res extends object>(
 
   type _RouteParams = ExtractRouteParams<R>;
 
-  return function useSearchQuery(
+  function useSearchQuery(
     searchParams: URLSearchParams = new URLSearchParams(),
     routeParams: _RouteParams = {} as _RouteParams,
   ) {
     return useQuery(routeParams, searchParams);
-  };
+  }
+  type UseSearchQuery = [keyof _RouteParams] extends [never]
+    ? (searchParams?: URLSearchParams, routeParams?: _RouteParams) => Query<Res>
+    : (
+        searchParams: URLSearchParams | undefined,
+        routeParams: _RouteParams,
+      ) => Query<Res>;
+  return useSearchQuery as UseSearchQuery;
 }

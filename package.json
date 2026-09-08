@@ -7,6 +7,8 @@
     "test": "npm run test:runtime && npm run test:types",
     "test:runtime": "jest --runInBand",
     "test:types": "tsc --project tsconfig.type-tests.json",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm test",
     "release": "np"
   },
   "keywords": [
@@ -20,7 +22,14 @@
   "types": "./dist/index.d.ts",
   "author": "0x55 <0xfiftyfive@gmail.com>",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eightyfive/fetch-run-store.git"
+  },
+  "homepage": "https://github.com/eightyfive/fetch-run-store#readme",
+  "bugs": "https://github.com/eightyfive/fetch-run-store/issues",
   "files": [
+    "CHANGELOG.md",
     "dist",
     "src",
     "!dist/**/*.test.*",
@@ -38,8 +47,10 @@
     "@types/web": "^0.0.294",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
+    "fetch-run": "^3.0.0",
     "jest": "^30.2.0",
     "jest-environment-jsdom": "^30.5.0",
+    "np": "^12.1.0",
     "prettier": "^3.6.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.8",
@@ -47,10 +58,10 @@
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
-    "react": "*"
+    "fetch-run": "^3.0.0",
+    "react": ">=18.0.0 <20"
   },
   "dependencies": {
-    "fetch-run": "next",
     "zustand": "^5.0.8"
   }
 }

@@ -16,16 +16,17 @@ export type Query<T> = {
 export function createQuery<R extends string, Res extends object>(
   ns: string,
   route: R,
-  execute: (url: string) => Promise<Res | undefined>
+  execute: (url: string) => Promise<Res | undefined>,
 ) {
   type _RouteParams = ExtractRouteParams<R>;
 
   const useQuery = (
     routeParams: _RouteParams = {} as _RouteParams,
-    searchParams?: URLSearchParams
+    searchParams?: URLSearchParams,
   ): Query<Res> => {
     const routeId = buildRoute(route, routeParams);
-    const queryId = !searchParams ? routeId : `${routeId}?${searchParams}`;
+    const search = searchParams?.toString();
+    const queryId = search ? `${routeId}?${search}` : routeId;
 
     // State
     const data = useApiStore(ns, (s) => s.data[queryId] as Res | undefined);

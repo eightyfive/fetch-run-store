@@ -12,3 +12,7 @@ export type ExtractRouteParams<T extends string> =
 export type WithOptionalRouteParams<P, R> = [keyof P] extends [never]
   ? (routeParams?: P, searchParams?: URLSearchParams) => R
   : (routeParams: P, searchParams?: URLSearchParams) => R;
+
+export type IdWithOptionalRouteParams<P, Result> = [keyof P] extends [never]
+  ? (id: ResourceId, routeParams?: P) => Result
+  : (id: ResourceId, routeParams: P) => Result;

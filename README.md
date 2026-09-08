@@ -101,6 +101,64 @@ when passing query-string parameters via `URLSearchParams`.
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
 reset them; mutations do not invalidate queries automatically.
 
+`read()`, `update()`, and `delete()` hooks share the same arguments:
+`(id, routeParams?)`. Parent route parameters are required when the collection
+route declares them. All three target the individual resource at `resource/:id`:
+
+```ts
+const users = apiStore.route("organizations/:organizationId/users");
+const useUser = users.read<User>();
+const useUpdateUser = users.update<{ name: string }, User>();
+const useDeleteUser = users.delete();
+
+// Inside a component:
+useUser(42, { organizationId: "acme" });
+useUpdateUser(42, { organizationId: "acme" });
+useDeleteUser(42, { organizationId: "acme" });
+```
+
+Create and update hooks expose a typed cache setter as their fourth tuple item:
+create's `setData(id, data)` takes an explicit resource ID, while update's
+`setData(data)` uses the ID already bound to the hook. Both accept the mutation's
+response type; that type does not need an `id` field. Parent parameters and
+resource IDs are URL-encoded just as they are for reads.
+
+```tsx
+const leagues = apiStore.route("leagues");
+const useCreateLeague = leagues.create<{ name: string }, League>();
+const useUpdateLeague = leagues.update<{ name: string }, League>();
+
+// Inside a component with an existing league:
+const [createLeague, isCreating, createError, setCreatedData] = useCreateLeague();
+const [updateLeague, isUpdating, updateError, setUpdatedData] = useUpdateLeague(league.id);
+
+async function create(name: string) {
+  const created = await createLeague({ name });
+  setCreatedData(created.id, created);
+}
+
+async function rename(name: string) {
+  setUpdatedData({ ...league, name });
+  try {
+    await updateLeague({ name });
+  } catch (error) {
+    setUpdatedData(league);
+    throw error;
+  } finally {
+    apiStore.invalidateQuery(`leagues/${encodeURIComponent(String(league.id))}`);
+  }
+}
+```
+
+`setData` updates subscribed hooks immediately. Only cached data changes:
+freshness, errors, and fetching state are preserved. Pending requests continue
+normally, and successful server responses overwrite optimistic data. Failed
+requests report their errors while retaining cached data. Lists, search variants,
+and other resources are unchanged; invalidate lists separately when needed.
+The setter sends no request. Updater callbacks and `undefined` are not supported.
+For a `void` response, there is no resource data type to pass to the setter.
+Custom mutations and `delete()` hooks retain their existing three-item tuples.
+
 `apiStore.invalidateQuery(id)` marks cache entries stale. Pass a resolved route
 to invalidate that route and every search variant; pass a resolved route with
 search parameters to invalidate only that exact search entry:

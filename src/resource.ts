@@ -1,15 +1,11 @@
 import { createQuery, Query } from "./query";
-import { ExtractRouteParams, ResourceId } from "./types";
+import { ExtractRouteParams, ResourceId, IdWithOptionalRouteParams } from "./types";
 
 //
 // CRUDL
 //
 
 // READ
-type IdWithOptionalRouteParams<P, Res> = [keyof P] extends [never]
-  ? (id: ResourceId, routeParams?: P) => Query<Res>
-  : (id: ResourceId, routeParams: P) => Query<Res>;
-
 export function createReadQuery<R extends string, Res extends object>(
   ns: string,
   route: R,
@@ -30,7 +26,7 @@ export function createReadQuery<R extends string, Res extends object>(
     return useQuery({ id, ...routeParams } as _AllParams);
   };
 
-  return useReadQuery as IdWithOptionalRouteParams<_RouteParams, Res>;
+  return useReadQuery as IdWithOptionalRouteParams<_RouteParams, Query<Res>>;
 }
 
 // LIST

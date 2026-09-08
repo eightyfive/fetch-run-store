@@ -1,4 +1,4 @@
-import { executeQuery, invalidateQuery, resetQueries, store } from "./store";
+import { executeQuery, invalidateQuery, resetQueries, setQueryData, store } from "./store";
 
 function deferred<T>() {
   let reject!: (reason?: unknown) => void;
@@ -110,3 +110,39 @@ test("ignores a completion that predates reset", async () => {
     id: "new",
   });
 });
+
+test.each(["resolve", "reject"] as const)(
+  "optimistic writes preserve pending requests and their %s outcome",
+  async (outcome) => {
+    const request = deferred<{ id: string }>();
+    const run = jest.fn(() => request.promise);
+    const flight = executeQuery("store-test", "users", run);
+    const before = store.getState().namespaces["store-test"];
+    setQueryData("store-test", "users", { id: "optimistic" });
+    const optimistic = store.getState().namespaces["store-test"];
+    expect(optimistic.data.users).toEqual({ id: "optimistic" });
+    expect(optimistic.fetching.users).toBe(true);
+    expect(optimistic.fetching).toBe(before.fetching);
+    expect(optimistic.errors).toBe(before.errors);
+    expect(optimistic.fresh).toBe(before.fresh);
+    expect(optimistic.revision).toBe(before.revision);
+    expect(executeQuery("store-test", "users", run)).toBe(flight);
+    expect(run).toHaveBeenCalledTimes(1);
+
+    if (outcome === "resolve") {
+      request.resolve({ id: "server" });
+      await flight;
+    } else {
+      request.reject(new Error("server failure"));
+      await expect(flight).rejects.toThrow("server failure");
+    }
+    const state = store.getState().namespaces["store-test"];
+    expect(state.data.users).toEqual({
+      id: outcome === "resolve" ? "server" : "optimistic",
+    });
+    expect(state.errors.users).toEqual(
+      outcome === "resolve" ? null : new Error("server failure"),
+    );
+    expect(state.fetching.users).toBe(false);
+  },
+);

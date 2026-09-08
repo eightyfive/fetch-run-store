@@ -1,6 +1,6 @@
 import { Api } from "fetch-run";
 import { createQuery } from "./query";
-import { createMutation } from "./mutation";
+import { createMutation, createCreateMutation, createUpdateMutation, createDeleteMutation } from "./mutation";
 import {
   createListQuery,
   createReadQuery,
@@ -34,7 +34,7 @@ export function createApiStore(api: Api) {
     route<R extends string>(route: R) {
       return {
         create<Req extends object | void, Res extends object | void>() {
-          return createMutation<R, Req, Res>(route, (url, req: Req) =>
+          return createCreateMutation<R, Req, Res>(ns, route, (url, req: Req) =>
             api.post<Res, Req>(url, req)
           );
         },
@@ -44,12 +44,12 @@ export function createApiStore(api: Api) {
           );
         },
         update<Req extends object | void, Res extends object | void>() {
-          return createMutation<R, Req, Res>(route, (url, req: Req) =>
+          return createUpdateMutation<R, Req, Res>(ns, route, (url, req: Req) =>
             api.put<Res, Req>(url, req)
           );
         },
         delete<Res extends object | void = void>() {
-          return createMutation<R, void, Res>(route, (url) =>
+          return createDeleteMutation<R, Res>(route, (url) =>
             api.delete<Res>(url)
           );
         },

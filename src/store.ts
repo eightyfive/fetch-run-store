@@ -161,6 +161,26 @@ export function executeQuery(
   return promise;
 }
 
+export function setQueryData<T extends object>(
+  ns: string,
+  id: string,
+  data: T,
+): void {
+  store.setState((state) => {
+    const namespace = state.namespaces[ns] ?? { ...initialNamespace };
+
+    return {
+      namespaces: {
+        ...state.namespaces,
+        [ns]: {
+          ...namespace,
+          data: { ...namespace.data, [id]: data },
+        },
+      },
+    };
+  });
+}
+
 export function invalidateQuery(ns: string, id: string) {
   invalidateMatchingFlights(ns, id);
 

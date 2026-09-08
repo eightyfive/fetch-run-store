@@ -1,9 +1,4 @@
-import {
-  executeQuery,
-  invalidateQuery,
-  resetQueries,
-  store,
-} from "./store";
+import { executeQuery, invalidateQuery, resetQueries, store } from "./store";
 
 function deferred<T>() {
   let reject!: (reason?: unknown) => void;
@@ -17,6 +12,27 @@ function deferred<T>() {
 }
 
 afterEach(() => resetQueries("store-test"));
+
+test("route invalidation ignores obsolete search responses without touching siblings", async () => {
+  const old = deferred<object>();
+  const stale = executeQuery(
+    "store-test",
+    "users?name=alice",
+    () => old.promise,
+  );
+  await executeQuery("store-test", "usersettings", async () => ({ ok: true }));
+  await executeQuery("store-test", "users/1", async () => ({ ok: true }));
+  invalidateQuery("store-test", "users");
+  await executeQuery("store-test", "users?name=alice", async () => ({
+    current: true,
+  }));
+  old.resolve({ current: false });
+  await stale;
+  const state = store.getState().namespaces["store-test"];
+  expect(state.data["users?name=alice"]).toEqual({ current: true });
+  expect(state.fresh.usersettings).toBe(true);
+  expect(state.fresh["users/1"]).toBe(true);
+});
 
 test("shares one in-flight promise for a namespace and cache key", async () => {
   const request = deferred<{ id: number }>();
@@ -43,7 +59,7 @@ test("stores a normalized Error and shares request failure", async () => {
   await expect(first).rejects.toThrow("offline");
   await expect(second).rejects.toThrow("offline");
   expect(store.getState().namespaces["store-test"].errors.users).toBeInstanceOf(
-    Error
+    Error,
   );
 });
 

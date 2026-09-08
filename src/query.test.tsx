@@ -1,12 +1,64 @@
 /** @jest-environment jsdom */
-import { cleanup, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  render,
+  renderHook,
+  waitFor,
+} from "@testing-library/react";
 
 import { createSearchQuery } from "./resource";
-import { resetQueries } from "./store";
+import { invalidateQueries, invalidateQuery, resetQueries } from "./store";
 
 afterEach(() => {
   cleanup();
   resetQueries("query-test");
+});
+
+test.each(["targeted", "all", "reset"])(
+  "%s invalidation restarts a pending initial fetch",
+  async (kind) => {
+    let resolveOld!: (value: { name: string }) => void;
+    const old = new Promise<{ name: string }>((resolve) => {
+      resolveOld = resolve;
+    });
+    const execute = jest
+      .fn()
+      .mockReturnValueOnce(old)
+      .mockResolvedValue({ name: "new" });
+    const useSearch = createSearchQuery<"users", { name: string }>(
+      "query-test",
+      "users",
+      execute,
+    );
+    const { result } = renderHook(() =>
+      useSearch(new URLSearchParams({ name: "alice" })),
+    );
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+    act(() => {
+      if (kind === "targeted") invalidateQuery("query-test", "users");
+      else if (kind === "all") invalidateQueries("query-test");
+      else resetQueries("query-test");
+    });
+    await waitFor(() => expect(result.current.data).toEqual({ name: "new" }));
+    await act(async () => {
+      resolveOld({ name: "old" });
+      await old;
+    });
+    expect(result.current.data).toEqual({ name: "new" });
+    expect(result.current.isFetching).toBe(false);
+    expect(execute).toHaveBeenCalledTimes(2);
+  },
+);
+
+test("a successful undefined response stays fresh across remounts", async () => {
+  const execute = jest.fn(async () => undefined);
+  const useSearch = createSearchQuery("query-test", "users", execute);
+  const first = renderHook(() => useSearch());
+  await waitFor(() => expect(first.result.current.isFetching).toBe(false));
+  first.unmount();
+  renderHook(() => useSearch());
+  expect(execute).toHaveBeenCalledTimes(1);
 });
 
 test("captures automatic-fetch failures in query state", async () => {

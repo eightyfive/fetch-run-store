@@ -1,7 +1,20 @@
 /** @jest-environment jsdom */
-import { act, render } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
 
 import { createMutation } from "./mutation";
+
+test("normalizes non-Error rejections in state and the returned promise", async () => {
+  const useMutation = createMutation<"users", void, void>("users", async () => {
+    throw "offline";
+  });
+  const { result } = renderHook(() => useMutation());
+  await act(async () => {
+    await expect(result.current[0]()).rejects.toThrow("offline");
+  });
+  expect(result.current[2]).toBeInstanceOf(Error);
+  expect(result.current[2]?.message).toBe("offline");
+  expect(result.current[1]).toBe(false);
+});
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -21,7 +34,7 @@ test("keeps loading true until every overlapping mutation settles", async () => 
     .mockReturnValueOnce(second.promise);
   const useMutation = createMutation<"users", { name: string }, { id: number }>(
     "users",
-    execute
+    execute,
   );
   let result!: ReturnType<typeof useMutation>;
 

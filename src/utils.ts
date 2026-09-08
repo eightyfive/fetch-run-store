@@ -1,11 +1,9 @@
 import { RouteParams } from "./types";
 
 export function buildRoute(route: string, routeParams: RouteParams) {
-  let url = route;
-
-  for (const [name, value] of Object.entries(routeParams)) {
-    url = url.replace(`:${name}`, encodeURIComponent(String(value)));
-  }
-
-  return url;
+  return route.replace(/:([^/]+)/g, (placeholder, name: string) =>
+    Object.prototype.hasOwnProperty.call(routeParams, name)
+      ? encodeURIComponent(String(routeParams[name]))
+      : placeholder,
+  );
 }

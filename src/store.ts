@@ -6,6 +6,7 @@ interface ApiStoreState {
   errors: Record<string, Error | null>;
   fetching: Record<string, boolean>;
   fresh: Record<string, boolean>;
+  revision: Record<string, number>;
 }
 
 const initialNamespace = {
@@ -13,6 +14,7 @@ const initialNamespace = {
   errors: {},
   fetching: {},
   fresh: {},
+  revision: {},
 };
 
 type RootState = {
@@ -26,14 +28,9 @@ export const store = createStore<RootState>(() => ({
 // Flights are keyed by cache identity: the first request wins and later callers
 // share its promise until it settles.
 const flights = new Map<string, Promise<void>>();
-const generations = new Map<string, number>();
 
 function flightKey(ns: string, id: string) {
   return `${ns}/${id}`;
-}
-
-function generationFor(key: string) {
-  return generations.get(key) ?? 0;
 }
 
 function invalidateFlight(key: string) {
@@ -41,13 +38,11 @@ function invalidateFlight(key: string) {
     return;
   }
 
-  generations.set(key, generationFor(key) + 1);
   flights.delete(key);
 }
 
 function invalidateNamespaceFlights(ns: string) {
   const prefix = `${ns}/`;
-
   for (const key of flights.keys()) {
     if (key.startsWith(prefix)) {
       invalidateFlight(key);
@@ -138,19 +133,18 @@ export function executeQuery(
     return existing;
   }
 
-  const generation = generationFor(key);
   setQueryExecuting(ns, id);
 
   const promise = new Promise<unknown>((resolve) => resolve(request()))
     .then((data) => {
-      if (generation === generationFor(key)) {
+      if (flights.get(key) === promise) {
         setQueryExecuted(ns, id, data);
       }
     })
     .catch((error: unknown) => {
       const normalizedError = toError(error);
 
-      if (generation === generationFor(key)) {
+      if (flights.get(key) === promise) {
         setQueryErrored(ns, id, normalizedError);
       }
 
@@ -183,21 +177,16 @@ export function invalidateQuery(ns: string, id: string) {
       matchesQueryId(queryId, id),
     );
 
-    if (
-      matchedIds.every(
-        (queryId) =>
-          !namespace.errors[queryId] && namespace.fresh[queryId] === false,
-      )
-    ) {
-      return state;
-    }
-
     const errors = { ...namespace.errors };
     const fresh = { ...namespace.fresh };
+    const fetching = { ...namespace.fetching };
+    const revision = { ...namespace.revision };
 
     for (const queryId of matchedIds) {
       errors[queryId] = null;
       fresh[queryId] = false;
+      fetching[queryId] = false;
+      revision[queryId] = (revision[queryId] ?? 0) + 1;
     }
 
     return {
@@ -207,6 +196,8 @@ export function invalidateQuery(ns: string, id: string) {
           ...namespace,
           errors,
           fresh,
+          fetching,
+          revision,
         },
       },
     };
@@ -222,6 +213,7 @@ export function invalidateQueries(ns: string) {
       [ns]: {
         ...initialNamespace,
         data: state.namespaces[ns]?.data ?? {},
+        revision: nextRevisions(state.namespaces[ns]),
       },
     },
   }));
@@ -233,9 +225,22 @@ export function resetQueries(ns: string) {
   store.setState((state) => ({
     namespaces: {
       ...state.namespaces,
-      [ns]: { ...initialNamespace },
+      [ns]: {
+        ...initialNamespace,
+        revision: nextRevisions(state.namespaces[ns]),
+      },
     },
   }));
+}
+
+function nextRevisions(namespace: ApiStoreState | undefined) {
+  const keys = new Set([
+    ...Object.keys(namespace?.fetching ?? {}),
+    ...Object.keys(namespace?.revision ?? {}),
+  ]);
+  return Object.fromEntries(
+    [...keys].map((id) => [id, (namespace?.revision[id] ?? 0) + 1]),
+  );
 }
 
 export function useApiStore<T>(

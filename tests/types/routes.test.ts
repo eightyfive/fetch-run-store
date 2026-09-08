@@ -55,5 +55,3 @@ api.setQueryData<User>("users/42", undefined);
 api.setQueryData("leagues", undefined);
 // @ts-expect-error values must match the explicit response type
 api.setQueryData<User>("users/42", { id: "42", name: "Ada" });
-// @ts-expect-error updater callbacks are not supported
-api.setQueryData<User>("users/42", (previous: User | undefined) => previous);

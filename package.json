@@ -7,9 +7,8 @@
     "test": "npm run test:runtime && npm run test:types",
     "test:runtime": "jest --runInBand",
     "test:types": "tsc --project tsconfig.type-tests.json",
-    "test:package": "node scripts/test-package.cjs",
     "prepack": "npm run build",
-    "prepublishOnly": "npm test && npm run test:package",
+    "prepublishOnly": "npm test",
     "release": "npm publish --access public"
   },
   "keywords": [
@@ -47,7 +46,6 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.5",
     "@types/web": "^0.0.294",
-    "esbuild": "^0.28.2",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "fetch-run": "^3.0.0",

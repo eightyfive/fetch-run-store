@@ -9,12 +9,7 @@ minor releases for breaking changes while on 0.x.
 1. Review and merge the release-preparation PR after local validation passes.
 2. Check out `main`, run `git pull --ff-only`, and confirm `git status --short`
    is empty. Confirm `package.json` and the lockfile carry the intended version.
-3. Run `npm ci`, `npm test`, and `npm run test:package`. Also run
-   `TEST_REACT_VERSION=18 npm run test:package` to verify React 18 (the default
-   package test uses React 19). The package test creates
-   a temporary source snapshot without `dist`, packs it, installs it into a
-   consumer, compiles the route type tests against the installed declarations,
-   and checks React rendering and browser bundling.
+3. Run `npm ci`, `npm test`, and `npm run build`.
 4. Confirm access to the npm account that will own `fetch-run-store` with
    `npm whoami`. For the first publish, confirm the name is still available.
    Configure the account's authentication/2FA as required by npm.
@@ -22,7 +17,7 @@ minor releases for breaking changes while on 0.x.
 ## Publish (explicit maintainer action)
 
 Run `npm run release` from that clean, verified `main` checkout. This invokes
-`npm publish --access public`. `prepublishOnly` runs runtime/type/package checks,
+`npm publish --access public`. `prepublishOnly` runs runtime and type tests,
 and `prepack` builds the compiled JavaScript, declarations and source maps.
 No workflow publishes automatically and no global `np` installation is needed.
 

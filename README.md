@@ -17,8 +17,12 @@ React 18 or 19 and fetch-run 3 are peer dependencies. Use a modern browser
 bundler and a runtime with Fetch and URLSearchParams. TypeScript declarations
 are included; no separate types package is needed for fetch-run-store.
 
-The first release is 0.1.0: the API may evolve before 1.0.0. See
+The planned first release is 0.1.0: the API may evolve before 1.0.0. See
 [the changelog](CHANGELOG.md).
+
+Maintainers release with `npm run release` (local `np`, requiring Node 22+ and
+npm 10+). The package stays at 0.0.0 until `np` prompts for the first version;
+select 0.1.0 when publishing from `main`.
 
 ## Usage
 

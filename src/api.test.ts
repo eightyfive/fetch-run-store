@@ -51,3 +51,41 @@ test("invalidates and resets only its API namespace", async () => {
 
   expect(store.getState().namespaces[baseUrl].data).toEqual({});
 });
+
+test("sets exact cache entries and applies updaters to the latest value", () => {
+  apiStore.setQueryData("users?name=alice", [{ id: 2 }]);
+  expect(apiStore.setQueryData("users", [{ id: 1 }])).toEqual([{ id: 1 }]);
+  apiStore.setQueryData<{ id: number }[]>("users", (previous) => [
+    ...previous!,
+    { id: 3 },
+  ]);
+
+  const state = store.getState().namespaces[baseUrl];
+  expect(state.data.users).toEqual([{ id: 1 }, { id: 3 }]);
+  expect(state.data["users?name=alice"]).toEqual([{ id: 2 }]);
+  expect(state.fresh.users).toBe(true);
+  expect(state.fetching.users).toBe(false);
+  expect(state.errors.users).toBeNull();
+  const other = createApiStore(Api.create("https://isolated.example.test"));
+  const updater = jest.fn(() => undefined);
+  other.setQueryData("users", updater);
+  expect(updater).toHaveBeenCalledWith(undefined);
+});
+
+test("undefined updaters leave the store unchanged and can seed missing data", () => {
+  const state = store.getState();
+  expect(apiStore.setQueryData("missing", () => undefined)).toBeUndefined();
+  expect(store.getState()).toBe(state);
+  apiStore.setQueryData<{ id: number }>("missing", (previous) => previous ?? { id: 1 });
+  const seeded = store.getState();
+  expect(apiStore.setQueryData("missing", () => undefined)).toEqual({ id: 1 });
+  expect(store.getState()).toBe(seeded);
+});
+
+test("setting data clears a previous query error", async () => {
+  await expect(executeQuery(baseUrl, "users", async () => {
+    throw new Error("offline");
+  })).rejects.toThrow("offline");
+  apiStore.setQueryData("users", [{ id: 1 }]);
+  expect(store.getState().namespaces[baseUrl].errors.users).toBeNull();
+});

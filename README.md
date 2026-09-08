@@ -101,6 +101,25 @@ when passing query-string parameters via `URLSearchParams`.
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
 reset them; mutations do not invalidate queries automatically.
 
+`apiStore.setQueryData<T>(id, valueOrUpdater)` writes one exact cache entry
+and immediately updates subscribed hooks. Pass a value or an immutable updater
+that receives the latest cached value (or `undefined` if absent):
+
+```ts
+apiStore.setQueryData<User>("users/42", { id: 42, name: "Ada" });
+apiStore.setQueryData<User>("users/42", (previous) =>
+  previous ? { ...previous, name: "Grace" } : undefined,
+);
+```
+
+Returning `undefined` leaves the entry unchanged. The method returns the
+resulting cached value. Writes mark the entry fresh, clear its error and fetching
+state, and ignore results from older in-flight reads without cancelling their
+network requests. Search variants and other routes are unchanged. Since IDs are
+strings, specify `T` for typed updaters; it is not inferred from route definitions.
+For optimistic mutations, retain the previous value for rollback on failure and
+invalidate the entry when ready to reconcile with the server.
+
 `apiStore.invalidateQuery(id)` marks cache entries stale. Pass a resolved route
 to invalidate that route and every search variant; pass a resolved route with
 search parameters to invalidate only that exact search entry:

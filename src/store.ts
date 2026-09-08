@@ -161,6 +161,40 @@ export function executeQuery(
   return promise;
 }
 
+export function setQueryData<T extends object>(
+  ns: string,
+  id: string,
+  updater: T | ((previous: T | undefined) => T | undefined),
+): T | undefined {
+  const previous = store.getState().namespaces[ns]?.data[id] as T | undefined;
+  const data = typeof updater === "function" ? updater(previous) : updater;
+
+  if (data === undefined) {
+    return previous;
+  }
+
+  // Supersede older reads without cancelling their underlying requests.
+  invalidateFlight(flightKey(ns, id));
+  store.setState((state) => {
+    const namespace = state.namespaces[ns] ?? { ...initialNamespace };
+
+    return {
+      namespaces: {
+        ...state.namespaces,
+        [ns]: {
+          ...namespace,
+          data: { ...namespace.data, [id]: data },
+          errors: { ...namespace.errors, [id]: null },
+          fetching: { ...namespace.fetching, [id]: false },
+          fresh: { ...namespace.fresh, [id]: true },
+        },
+      },
+    };
+  });
+
+  return data;
+}
+
 export function invalidateQuery(ns: string, id: string) {
   invalidateMatchingFlights(ns, id);
 

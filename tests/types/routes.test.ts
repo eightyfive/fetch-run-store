@@ -47,3 +47,12 @@ useSearch(new URLSearchParams());
 // @ts-expect-error unknown route parameters are rejected
 useSearch(undefined, { organization: "acme" });
 api.route("users").search<User>()();
+
+const cachedUser: User | undefined = api.setQueryData("users/42", { id: 42, name: "Ada" });
+api.setQueryData<User>("users/42", (previous) =>
+  previous ? { ...previous, name: "Grace" } : undefined,
+);
+// @ts-expect-error values must match the explicit response type
+api.setQueryData<User>("users/42", { id: "42", name: "Ada" });
+// @ts-expect-error updater results must match the response type
+api.setQueryData<User>("users/42", (previous) => ({ ...previous, id: "42" }));

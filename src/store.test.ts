@@ -1,4 +1,4 @@
-import { executeQuery, invalidateQuery, resetQueries, store } from "./store";
+import { executeQuery, invalidateQuery, resetQueries, setQueryData, store } from "./store";
 
 function deferred<T>() {
   let reject!: (reason?: unknown) => void;
@@ -110,3 +110,25 @@ test("ignores a completion that predates reset", async () => {
     id: "new",
   });
 });
+
+test.each(["resolve", "reject"] as const)(
+  "optimistic writes ignore older request %s and allow subsequent refetches",
+  async (outcome) => {
+    const old = deferred<{ id: string }>();
+    const flight = executeQuery("store-test", "users", () => old.promise);
+    setQueryData("store-test", "users", { id: "optimistic" });
+    if (outcome === "resolve") {
+      old.resolve({ id: "old" });
+      await flight;
+    } else {
+      old.reject(new Error("old failure"));
+      await expect(flight).rejects.toThrow("old failure");
+    }
+    const state = store.getState().namespaces["store-test"];
+    expect(state.data.users).toEqual({ id: "optimistic" });
+    expect(state.errors.users).toBeNull();
+    expect(state.fetching.users).toBe(false);
+    await executeQuery("store-test", "users", async () => ({ id: "server" }));
+    expect(store.getState().namespaces["store-test"].data.users).toEqual({ id: "server" });
+  },
+);

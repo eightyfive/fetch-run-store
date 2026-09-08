@@ -10,6 +10,7 @@ import {
   invalidateQueries as invalidateQueriesForNamespace,
   invalidateQuery as invalidateQueryForNamespace,
   resetQueries as resetQueriesForNamespace,
+  setQueryData as setQueryDataForNamespace,
 } from "./store";
 
 export function createApiStore(api: Api) {
@@ -24,6 +25,11 @@ export function createApiStore(api: Api) {
     },
 
     createMutation,
+
+    setQueryData: <T extends object>(
+      id: string,
+      updater: T | ((previous: T | undefined) => T | undefined),
+    ) => setQueryDataForNamespace<T>(ns, id, updater),
 
     invalidateQuery: (id: string) => invalidateQueryForNamespace(ns, id),
 

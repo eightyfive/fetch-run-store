@@ -88,6 +88,10 @@ function OrganizationUsers({ organizationId }: { organizationId: string }) {
 CRUDL hooks, `createQuery()` for a custom query, `createMutation()` for a
 custom mutation, and the cache controls below.
 
+`list()` hooks accept only the path parameters declared in the route (or no
+arguments for a route without parameters). Use `search()` hooks explicitly
+when passing query-string parameters via `URLSearchParams`.
+
 ## Cache lifecycle
 
 Cache lifecycle is explicit. Queries retain their data until you invalidate or

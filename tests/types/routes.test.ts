@@ -7,9 +7,15 @@ const api = createApiStore(Api.create("https://api.example.test"));
 
 const useHealth = api.route("health").list<User>();
 useHealth();
+// @ts-expect-error list hooks without path parameters take no arguments
+useHealth(new URLSearchParams({ page: "1" }));
+// @ts-expect-error query-string parameters belong to search hooks
+useHealth(undefined, new URLSearchParams({ page: "1" }));
 
 const useUsers = api.route("organizations/:organizationId/users").list<User>();
 useUsers({ organizationId: 1 });
+// @ts-expect-error list hooks accept path parameters only
+useUsers({ organizationId: 1 }, new URLSearchParams({ page: "1" }));
 // @ts-expect-error route parameters are required
 useUsers();
 // @ts-expect-error unknown keys cannot replace required route parameters

@@ -1,9 +1,5 @@
 import { createQuery, Query } from "./query";
-import {
-  ExtractRouteParams,
-  ResourceId,
-  WithOptionalRouteParams,
-} from "./types";
+import { ExtractRouteParams, ResourceId } from "./types";
 
 //
 // CRUDL
@@ -50,7 +46,10 @@ export function createListQuery<R extends string, Res extends object>(
   function useListQuery(routeParams: _RouteParams = {} as _RouteParams) {
     return useQuery(routeParams);
   }
-  return useListQuery as WithOptionalRouteParams<_RouteParams, Query<Res>>;
+  type UseListQuery = [keyof _RouteParams] extends [never]
+    ? () => Query<Res>
+    : (routeParams: _RouteParams) => Query<Res>;
+  return useListQuery as UseListQuery;
 }
 
 // SEARCH

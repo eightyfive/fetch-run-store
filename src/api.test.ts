@@ -15,6 +15,30 @@ test("invalidates one resolved cache ID in its API namespace", async () => {
   expect(store.getState().namespaces[baseUrl].fresh["users/42"]).toBe(false);
 });
 
+test("invalidates a route and all of its search variants", async () => {
+  await executeQuery(baseUrl, "users", async () => [{ id: 1 }]);
+  await executeQuery(baseUrl, "users?name=alice", async () => [{ id: 2 }]);
+  await executeQuery(baseUrl, "users?name=bob", async () => [{ id: 3 }]);
+
+  apiStore.invalidateQuery("users");
+
+  const { fresh } = store.getState().namespaces[baseUrl];
+  expect(fresh.users).toBe(false);
+  expect(fresh["users?name=alice"]).toBe(false);
+  expect(fresh["users?name=bob"]).toBe(false);
+});
+
+test("invalidates one exact search cache ID", async () => {
+  await executeQuery(baseUrl, "users?name=alice", async () => [{ id: 1 }]);
+  await executeQuery(baseUrl, "users?name=bob", async () => [{ id: 2 }]);
+
+  apiStore.invalidateQuery("users?name=alice");
+
+  const { fresh } = store.getState().namespaces[baseUrl];
+  expect(fresh["users?name=alice"]).toBe(false);
+  expect(fresh["users?name=bob"]).toBe(true);
+});
+
 test("invalidates and resets only its API namespace", async () => {
   await executeQuery(baseUrl, "users", async () => [{ id: 1 }]);
 

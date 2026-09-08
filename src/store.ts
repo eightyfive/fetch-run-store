@@ -55,6 +55,20 @@ function invalidateNamespaceFlights(ns: string) {
   }
 }
 
+function matchesQueryId(queryId: string, id: string) {
+  return queryId === id || (!id.includes("?") && queryId.startsWith(`${id}?`));
+}
+
+function invalidateMatchingFlights(ns: string, id: string) {
+  for (const key of flights.keys()) {
+    const queryId = key.slice(`${ns}/`.length);
+
+    if (key.startsWith(`${ns}/`) && matchesQueryId(queryId, id)) {
+      invalidateFlight(key);
+    }
+  }
+}
+
 function toError(error: unknown): Error {
   return error instanceof Error ? error : new Error(String(error));
 }
@@ -115,7 +129,7 @@ function setQueryErrored(ns: string, id: string, error: Error) {
 export function executeQuery(
   ns: string,
   id: string,
-  request: () => Promise<unknown>
+  request: () => Promise<unknown>,
 ) {
   const key = flightKey(ns, id);
   const existing = flights.get(key);
@@ -154,13 +168,36 @@ export function executeQuery(
 }
 
 export function invalidateQuery(ns: string, id: string) {
-  invalidateFlight(flightKey(ns, id));
+  invalidateMatchingFlights(ns, id);
 
   store.setState((state) => {
     const namespace = state.namespaces[ns] ?? { ...initialNamespace };
+    const ids = new Set([
+      id,
+      ...Object.keys(namespace.data),
+      ...Object.keys(namespace.errors),
+      ...Object.keys(namespace.fetching),
+      ...Object.keys(namespace.fresh),
+    ]);
+    const matchedIds = [...ids].filter((queryId) =>
+      matchesQueryId(queryId, id),
+    );
 
-    if (!namespace.errors[id] && namespace.fresh[id] === false) {
+    if (
+      matchedIds.every(
+        (queryId) =>
+          !namespace.errors[queryId] && namespace.fresh[queryId] === false,
+      )
+    ) {
       return state;
+    }
+
+    const errors = { ...namespace.errors };
+    const fresh = { ...namespace.fresh };
+
+    for (const queryId of matchedIds) {
+      errors[queryId] = null;
+      fresh[queryId] = false;
     }
 
     return {
@@ -168,8 +205,8 @@ export function invalidateQuery(ns: string, id: string) {
         ...state.namespaces,
         [ns]: {
           ...namespace,
-          errors: { ...namespace.errors, [id]: null },
-          fresh: { ...namespace.fresh, [id]: false },
+          errors,
+          fresh,
         },
       },
     };
@@ -203,9 +240,9 @@ export function resetQueries(ns: string) {
 
 export function useApiStore<T>(
   ns: string,
-  selector: (namespace: ApiStoreState) => T
+  selector: (namespace: ApiStoreState) => T,
 ) {
   return store(
-    useShallow((state) => selector(state.namespaces[ns] ?? initialNamespace))
+    useShallow((state) => selector(state.namespaces[ns] ?? initialNamespace)),
   );
 }

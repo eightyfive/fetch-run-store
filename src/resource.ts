@@ -13,7 +13,7 @@ type IdWithOptionalRouteParams<P, Res> = [keyof P] extends [never]
 export function createReadQuery<R extends string, Res extends object>(
   ns: string,
   route: R,
-  execute: (url: string) => Promise<Res | undefined>
+  execute: (url: string) => Promise<Res | undefined>,
 ) {
   type _RouteWithId = `${R}/:id`;
   type _AllParams = ExtractRouteParams<_RouteWithId>;
@@ -25,7 +25,7 @@ export function createReadQuery<R extends string, Res extends object>(
 
   const useReadQuery = (
     id: ResourceId,
-    routeParams: _RouteParams = {} as _RouteParams
+    routeParams: _RouteParams = {} as _RouteParams,
   ) => {
     return useQuery({ id, ...routeParams } as _AllParams);
   };
@@ -37,7 +37,7 @@ export function createReadQuery<R extends string, Res extends object>(
 export function createListQuery<R extends string, Res extends object>(
   ns: string,
   route: R,
-  execute: (url: string) => Promise<Res | undefined>
+  execute: (url: string) => Promise<Res | undefined>,
 ) {
   const useQuery = createQuery<R, Res>(ns, route, execute);
 
@@ -50,13 +50,14 @@ export function createListQuery<R extends string, Res extends object>(
 
 // SEARCH
 /**
- * Search parameters change the request URL, not the cache key. Callers control
- * subsequent searches (for example, by debouncing input and calling refetch).
+ * Nonempty search parameters are part of the request URL and cache key. Callers
+ * control subsequent searches (for example, by debouncing input and calling
+ * refetch).
  */
 export function createSearchQuery<R extends string, Res extends object>(
   ns: string,
   route: R,
-  execute: (url: string) => Promise<Res | undefined>
+  execute: (url: string) => Promise<Res | undefined>,
 ) {
   const useQuery = createQuery<R, Res>(ns, route, execute);
 
@@ -64,7 +65,7 @@ export function createSearchQuery<R extends string, Res extends object>(
 
   return function useSearchQuery(
     searchParams: URLSearchParams = new URLSearchParams(),
-    routeParams: _RouteParams = {} as _RouteParams
+    routeParams: _RouteParams = {} as _RouteParams,
   ) {
     return useQuery(routeParams, searchParams);
   };

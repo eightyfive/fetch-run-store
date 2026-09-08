@@ -35,9 +35,7 @@ export const useUser = users.read<User>();
 export const useCreateUser = users.create<{ name: string }, User>();
 export const useUpdateUser = users.update<{ name: string }, User>();
 
-const organizationUsers = apiStore.route(
-  "organizations/:organizationId/users"
-);
+const organizationUsers = apiStore.route("organizations/:organizationId/users");
 export const useOrganizationUsers = organizationUsers.list<User>();
 ```
 
@@ -60,7 +58,11 @@ function Users() {
       >
         Add user
       </button>
-      <ul>{users?.map((user) => <li key={user.id}>{user.name}</li>)}</ul>
+      <ul>
+        {users?.map((user) => (
+          <li key={user.id}>{user.name}</li>
+        ))}
+      </ul>
     </>
   );
 }
@@ -80,12 +82,14 @@ custom mutation, and the cache controls below.
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
 reset them; mutations do not invalidate queries automatically.
 
-`apiStore.invalidateQuery(id)` marks one exact cache ID stale. Pass the
-resolved route you want to invalidate:
+`apiStore.invalidateQuery(id)` marks cache entries stale. Pass a resolved route
+to invalidate that route and every search variant; pass a resolved route with
+search parameters to invalidate only that exact search entry:
 
 ```ts
 apiStore.invalidateQuery("users");
 apiStore.invalidateQuery("organizations/1234/users");
+apiStore.invalidateQuery("users?name=Ada");
 ```
 
 `apiStore.invalidateQueries()` invalidates every query for that API while
@@ -98,7 +102,7 @@ For example, invalidate after a successful mutation observed by `fetch-run`:
 ```ts
 api.subscribe((request, response) => {
   const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(
-    request.method
+    request.method,
   );
   const isSuccess = response.status >= 200 && response.status < 300;
 
@@ -137,10 +141,12 @@ This library intentionally does one small job: turn typed API routes into
 React query and mutation hooks with explicit cache controls.
 
 - Preserve typed routes. Route parameter inference is a core guarantee.
-- A cache entry and in-flight request are identified by the resolved route
-  path. Concurrent callers share the first active request for that route.
-- Search parameters change the request URL, not the route cache key. Debounce
-  and choose refetch behavior in the application.
+- A cache entry and in-flight request are identified by the resolved route and
+  its nonempty search parameters. Concurrent callers share the first active
+  request for that exact URL.
+- Invalidating a route also invalidates all of its search variants. Invalidating
+  a URL with search parameters affects that exact cache entry. Debounce and
+  choose refetch behavior in the application.
 - Applications own retries, cancellation, refetch timing, and cache lifecycle.
   There is no automatic mutation invalidation, retry policy, cancellation, or
   cache garbage collection.

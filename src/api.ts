@@ -1,6 +1,7 @@
 import { Api } from "fetch-run";
+import { ResourceId } from "./types";
 import { createQuery } from "./query";
-import { createMutation } from "./mutation";
+import { createMutation, createResourceMutation } from "./mutation";
 import {
   createListQuery,
   createReadQuery,
@@ -10,7 +11,6 @@ import {
   invalidateQueries as invalidateQueriesForNamespace,
   invalidateQuery as invalidateQueryForNamespace,
   resetQueries as resetQueriesForNamespace,
-  setQueryData as setQueryDataForNamespace,
 } from "./store";
 
 export function createApiStore(api: Api) {
@@ -26,11 +26,6 @@ export function createApiStore(api: Api) {
 
     createMutation,
 
-    setQueryData: <T extends object>(
-      id: string,
-      data: T,
-    ) => setQueryDataForNamespace<T>(ns, id, data),
-
     invalidateQuery: (id: string) => invalidateQueryForNamespace(ns, id),
 
     invalidateQueries: () => invalidateQueriesForNamespace(ns),
@@ -39,8 +34,8 @@ export function createApiStore(api: Api) {
 
     route<R extends string>(route: R) {
       return {
-        create<Req extends object | void, Res extends object | void>() {
-          return createMutation<R, Req, Res>(route, (url, req: Req) =>
+        create<Req extends object | void, Res extends { id: ResourceId }>() {
+          return createResourceMutation<R, Req, Res>(ns, route, (url, req: Req) =>
             api.post<Res, Req>(url, req)
           );
         },
@@ -49,8 +44,8 @@ export function createApiStore(api: Api) {
             api.get<Item>(url)
           );
         },
-        update<Req extends object | void, Res extends object | void>() {
-          return createMutation<R, Req, Res>(route, (url, req: Req) =>
+        update<Req extends object | void, Res extends { id: ResourceId }>() {
+          return createResourceMutation<R, Req, Res>(ns, route, (url, req: Req) =>
             api.put<Res, Req>(url, req)
           );
         },

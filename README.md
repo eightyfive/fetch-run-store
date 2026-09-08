@@ -101,21 +101,50 @@ when passing query-string parameters via `URLSearchParams`.
 Cache lifecycle is explicit. Queries retain their data until you invalidate or
 reset them; mutations do not invalidate queries automatically.
 
-`apiStore.setQueryData<T>(id, data)` writes one exact cache entry and
-immediately updates subscribed hooks. Pass a replacement value:
+`create()` and `update()` mutation hooks expose `setData(data)` as their
+fourth tuple item. Their response types must include `id: string | number`.
+The setter uses that response type and `data.id` to write only the
+individual resource key: a hook defined on `"leagues"` writes `"leagues/:id"`,
+the same entry used by `route("leagues").read<League>()`. Define these hooks on
+the collection route; parent route parameters are resolved from the hook's
+arguments, and the resource ID from `data.id` is URL-encoded.
 
-```ts
-apiStore.setQueryData<User>("users/42", { id: 42, name: "Ada" });
+```tsx
+const leagues = apiStore.route("leagues");
+const useCreateLeague = leagues.create<{ name: string }, League>();
+const useUpdateLeague = leagues.update<{ id: League["id"]; name: string }, League>();
+
+// Inside a component:
+const [createLeague, isCreating, createError, setCreatedData] = useCreateLeague();
+const [updateLeague, isUpdating, updateError, setUpdatedData] = useUpdateLeague();
+
+async function create(name: string) {
+  const league = await createLeague({ name });
+  setCreatedData(league);
+}
+
+async function rename(league: League, name: string) {
+  setUpdatedData({ ...league, name });
+  try {
+    await updateLeague({ id: league.id, name });
+  } catch (error) {
+    setUpdatedData(league);
+    throw error;
+  } finally {
+    apiStore.invalidateQuery(`leagues/${encodeURIComponent(String(league.id))}`);
+  }
+}
 ```
 
-Only cached data changes: freshness, errors, and fetching state are preserved.
-Pending requests continue normally, and successful server responses overwrite
-optimistic data. Failed requests report their errors while retaining cached data.
-Search variants and other routes are unchanged. Since IDs are strings, response
-types are not inferred from route definitions. Updater callbacks and `undefined`
-are not supported.
-For optimistic mutations, retain the previous value for rollback on failure and
-invalidate the entry when ready to reconcile with the server.
+`setData` updates subscribed hooks immediately. Only cached data changes:
+freshness, errors, and fetching state are preserved. Pending requests continue
+normally, and successful server responses overwrite optimistic data. Failed
+requests report their errors while retaining cached data. Lists, search variants,
+and other resources are unchanged; invalidate lists separately when needed.
+The setter does not change the mutation's request URL or send a request itself.
+Updater callbacks and `undefined` are not supported. Use a custom mutation for
+endpoints returning no resource or a response without an ID. Custom mutations
+and `delete()` hooks retain their existing three-item tuples.
 
 `apiStore.invalidateQuery(id)` marks cache entries stale. Pass a resolved route
 to invalidate that route and every search variant; pass a resolved route with

@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
+import { ExtractRouteParams, ResourceId, WithOptionalRouteParams } from "./types";
 import { buildRoute } from "./utils";
+import { setQueryData } from "./store";
 
 export type Mutation<Req extends object | void, Res extends object | void> = [
   (data: Req) => Promise<Res>,
@@ -55,4 +56,31 @@ export function createMutation<
   >;
 
   return useMutation as UseMutationFn;
+}
+
+export function createResourceMutation<
+  R extends string,
+  Req extends object | void,
+  Res extends { id: ResourceId },
+>(ns: string, route: R, execute: (url: string, data: Req) => Promise<Res>) {
+  type Params = ExtractRouteParams<R>;
+  const useMutation = createMutation<R, Req, Res>(route, execute);
+
+  const useResourceMutation = (routeParams: Params = {} as Params) => {
+    const mutation = useMutation(routeParams);
+    const url = buildRoute(route, routeParams);
+    const setData = useCallback(
+      (data: Res): void => {
+        setQueryData(ns, `${url}/${encodeURIComponent(String(data.id))}`, data);
+      },
+      [ns, url],
+    );
+
+    return [...mutation, setData] as const;
+  };
+
+  return useResourceMutation as WithOptionalRouteParams<
+    Params,
+    [...Mutation<Req, Res>, (data: Res) => void]
+  >;
 }

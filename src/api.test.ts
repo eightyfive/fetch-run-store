@@ -51,28 +51,3 @@ test("invalidates and resets only its API namespace", async () => {
 
   expect(store.getState().namespaces[baseUrl].data).toEqual({});
 });
-
-test("sets exact cache entries without affecting other namespaces", () => {
-  apiStore.setQueryData("users?name=alice", [{ id: 2 }]);
-  apiStore.setQueryData("users", [{ id: 1 }]);
-  apiStore.setQueryData("users", [{ id: 1 }, { id: 3 }]);
-
-  const state = store.getState().namespaces[baseUrl];
-  expect(state.data.users).toEqual([{ id: 1 }, { id: 3 }]);
-  expect(state.data["users?name=alice"]).toEqual([{ id: 2 }]);
-  expect(state.fresh.users).toBeUndefined();
-  expect(state.fetching.users).toBeUndefined();
-  expect(state.errors.users).toBeUndefined();
-  const other = createApiStore(Api.create("https://isolated.example.test"));
-  other.setQueryData("users", [{ id: 99 }]);
-  expect(store.getState().namespaces[baseUrl].data.users).toEqual([{ id: 1 }, { id: 3 }]);
-  other.resetQueries();
-});
-
-test("setting data preserves a previous query error", async () => {
-  await expect(executeQuery(baseUrl, "users", async () => {
-    throw new Error("offline");
-  })).rejects.toThrow("offline");
-  apiStore.setQueryData("users", [{ id: 1 }]);
-  expect(store.getState().namespaces[baseUrl].errors.users).toEqual(new Error("offline"));
-});

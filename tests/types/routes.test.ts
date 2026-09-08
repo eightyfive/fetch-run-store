@@ -48,10 +48,24 @@ useSearch(new URLSearchParams());
 useSearch(undefined, { organization: "acme" });
 api.route("users").search<User>()();
 
-api.setQueryData("users/42", { id: 42, name: "Ada" });
-// @ts-expect-error undefined is not a replacement value
-api.setQueryData<User>("users/42", undefined);
-// @ts-expect-error undefined is rejected without an explicit type too
-api.setQueryData("leagues", undefined);
-// @ts-expect-error values must match the explicit response type
-api.setQueryData<User>("users/42", { id: "42", name: "Ada" });
+const [, , , setCreatedUser] = useCreateUser({ organizationId: "acme" });
+setCreatedUser({ id: 42, name: "Ada" });
+// @ts-expect-error data must include its resource ID
+setCreatedUser({ name: "Ada" });
+// @ts-expect-error data must match the mutation response type
+setCreatedUser({ id: "42", name: "Ada" });
+// @ts-expect-error undefined is not resource data
+setCreatedUser(undefined);
+const useUpdateUser = api.route("users").update<{ name: string }, User>();
+const [, , , setUpdatedUser] = useUpdateUser();
+setUpdatedUser({ id: 42, name: "Grace" });
+// @ts-expect-error update data must match the response type
+setUpdatedUser([{ id: 42, name: "Grace" }]);
+// @ts-expect-error create responses must have a resource ID
+api.route("users").create<{ name: string }, { name: string }>();
+// @ts-expect-error update responses must have a string or number ID
+api.route("users").update<{ name: string }, { id: boolean }>();
+// @ts-expect-error create responses must be resources, not void
+api.route("users").create<{ name: string }, void>();
+// @ts-expect-error global untyped cache writes are not exposed
+api.setQueryData("users", []);

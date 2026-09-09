@@ -125,7 +125,7 @@ test.each(["create", "update"] as const)(
     expect(read.result.current.isFetching).toBe(false);
     read.unmount();
     mutation.unmount();
-    apiStore.resetQueries();
+    apiStore.resetAll();
   },
 );
 
@@ -151,7 +151,7 @@ test("setData follows parent route parameters and preserves existing errors", as
   expect(state.errors["organizations/second/users/1"]).toBe(error);
   expect(state.fresh["organizations/second/users/1"]).toBeUndefined();
   unmount();
-  apiStore.resetQueries();
+  apiStore.resetAll();
 });
 
 test("update and delete use the read URL and follow changed IDs and parents", async () => {
@@ -188,7 +188,7 @@ test("update and delete use the read URL and follow changed IDs and parents", as
   }
   expect(store.getState().namespaces[baseUrl].data["organizations/a%2Fb/users/42%2F1"]).toEqual({ name: "optimistic" });
   unmount();
-  apiStore.resetQueries();
+  apiStore.resetAll();
 });
 
 test("create posts to the collection and writes response data to the explicit ID", async () => {
@@ -206,5 +206,5 @@ test("create posts to the collection and writes response data to the explicit ID
     "users/42": { name: "created" },
   });
   unmount();
-  apiStore.resetQueries();
+  apiStore.resetAll();
 });

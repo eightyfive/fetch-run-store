@@ -145,7 +145,7 @@ async function rename(name: string) {
     setUpdatedData(league);
     throw error;
   } finally {
-    apiStore.invalidateQuery(`leagues/${encodeURIComponent(String(league.id))}`);
+    apiStore.invalidate(`leagues/${encodeURIComponent(String(league.id))}`);
   }
 }
 ```
@@ -159,14 +159,14 @@ The setter sends no request. Updater callbacks and `undefined` are not supported
 For a `void` response, there is no resource data type to pass to the setter.
 Custom mutations and `delete()` hooks retain their existing three-item tuples.
 
-`apiStore.invalidateQuery(id)` marks cache entries stale. Pass a resolved route
+`apiStore.invalidate(id)` marks cache entries stale. Pass a resolved route
 to invalidate that route and every search variant; pass a resolved route with
 search parameters to invalidate only that exact search entry:
 
 ```ts
-apiStore.invalidateQuery("users");
-apiStore.invalidateQuery("organizations/1234/users");
-apiStore.invalidateQuery("users?name=Ada");
+apiStore.invalidate("users");
+apiStore.invalidate("organizations/1234/users");
+apiStore.invalidate("users?name=Ada");
 ```
 
 Matching is literal: `users` does not match `users/42` or `usersettings`, and
@@ -176,10 +176,12 @@ Changing search parameters fetches an uncached variant automatically; debounce
 the parameters passed to the hook when needed. A hook's `invalidate()` follows
 the same matching rules (an empty-search hook invalidates all route variants).
 
-`apiStore.invalidateQueries()` invalidates every query for that API while
+`apiStore.invalidateAll()` invalidates every query for that API while
 keeping its cached data available until a refetch completes. Active hooks
-refetch; inactive hooks refetch when they next mount. `apiStore.resetQueries()`
-clears that API's cache entirely.
+refetch; inactive hooks refetch when they next mount. `apiStore.resetAll()`
+clears that API's cache entirely. In both names, `All` means the API namespace
+identified by its base URL, including other stores using that same base URL.
+`invalidate(id)` requires an ID; use `invalidateAll()` for API-wide invalidation.
 
 For example, invalidate after a successful mutation observed by `fetch-run`:
 
@@ -190,7 +192,7 @@ api.subscribe((request, response) => {
   );
   const isSuccess = response.status >= 200 && response.status < 300;
 
-  if (isMutation && isSuccess) apiStore.invalidateQueries();
+  if (isMutation && isSuccess) apiStore.invalidateAll();
 });
 ```
 
@@ -198,7 +200,7 @@ Refresh API-backed screens when the app returns to the foreground:
 
 ```ts
 function onAppForeground() {
-  apiStore.invalidateQueries();
+  apiStore.invalidateAll();
 }
 ```
 
@@ -211,10 +213,10 @@ function applyToken(token: string | null) {
 
   if (token) {
     // Retry the current user query after a previous 401.
-    apiStore.invalidateQuery("user");
+    apiStore.invalidate("user");
   } else {
     // Do not retain data from the previous session.
-    apiStore.resetQueries();
+    apiStore.resetAll();
   }
 }
 ```

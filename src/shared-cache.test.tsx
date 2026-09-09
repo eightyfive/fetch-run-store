@@ -16,12 +16,12 @@ test("separate Api instances at the same base URL share data and invalidation", 
     expect(first.result.current.data).toEqual({ requestCount: 1 });
     expect(second.result.current.data).toEqual({ requestCount: 1 });
   });
-  act(() => b.invalidateQuery("health"));
+  act(() => b.invalidate("health"));
   await waitFor(() => {
     expect(first.result.current.data).toEqual({ requestCount: 2 });
     expect(second.result.current.data).toEqual({ requestCount: 2 });
   });
   first.unmount();
   second.unmount();
-  a.resetQueries();
+  a.resetAll();
 });

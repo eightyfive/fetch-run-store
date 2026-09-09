@@ -48,24 +48,16 @@ useSearch(new URLSearchParams());
 useSearch(undefined, { organization: "acme" });
 api.route("users").search<User>()();
 
-const [, , , setCreatedUser] = useCreateUser({ organizationId: "acme" });
-setCreatedUser(42, { id: 42, name: "Ada" });
-// @ts-expect-error create setData requires a target ID
-setCreatedUser({ id: 42, name: "Ada" });
-// @ts-expect-error data must match the mutation response type
-setCreatedUser(42, { id: "42", name: "Ada" });
-// @ts-expect-error undefined is not resource data
-setCreatedUser(42, undefined);
+// @ts-expect-error create results have only three tuple items
+useCreateUser({ organizationId: "acme" })[3];
 const useUpdateUser = api.route("users").update<{ name: string }, User>();
-const [, , , setUpdatedUser] = useUpdateUser(42);
-setUpdatedUser({ id: 42, name: "Grace" });
+// @ts-expect-error update results have only three tuple items
+useUpdateUser(42)[3];
 // @ts-expect-error update requires a resource ID
 useUpdateUser();
-// @ts-expect-error update data must match the response type
-setUpdatedUser([{ id: 42, name: "Grace" }]);
 const nested = api.route("organizations/:organizationId/users");
 const useNestedUpdate = nested.update<{ name: string }, { name: string }>();
-useNestedUpdate(42, { organizationId: "acme" })[3]({ name: "Ada" });
+useNestedUpdate(42, { organizationId: "acme" });
 // @ts-expect-error parent params are required for updates
 useNestedUpdate(42);
 // @ts-expect-error update ID must be a string or number
@@ -80,7 +72,41 @@ const useDelete = api.route("users").delete();
 useDelete(42);
 // @ts-expect-error delete requires a resource ID
 useDelete();
-api.route("users").create<{ name: string }, { name: string }>()()[3](42, { name: "Ada" });
+api.route("users").create<{ name: string }, { name: string }>()();
 api.route("users").update<{ name: string }, void>()(42);
 // @ts-expect-error global untyped cache writes are not exposed
 api.setQueryData("users", []);
+
+const user = useUser(42, { organizationId: "acme" });
+user.setData({ id: 42, name: "Ada" });
+user.setData(previous => {
+  const value: User | undefined = previous;
+  // @ts-expect-error previous may be undefined
+  const required: User = previous;
+  return { id: 42, name: value?.name ?? "Ada" };
+});
+// @ts-expect-error data must match the query response
+user.setData({ id: "42", name: "Ada" });
+// @ts-expect-error setters are already bound to an ID
+user.setData(42, { id: 42, name: "Ada" });
+// @ts-expect-error undefined is not response data
+user.setData(undefined);
+// @ts-expect-error updater must return response data
+user.setData(() => undefined);
+// @ts-expect-error read IDs remain required
+api.route("users").read<User>()();
+const list = useUsers({ organizationId: "acme" });
+list.setData([{ id: 42, name: "Ada" }]);
+list.setData(previous => [...(previous ?? []), { id: 43, name: "Grace" }]);
+// @ts-expect-error lists require arrays
+list.setData({ id: 42, name: "Ada" });
+const search = useSearch(undefined, { organizationId: "acme" });
+search.setData(previous => previous ?? []);
+// @ts-expect-error searches require arrays
+search.setData({ id: 42, name: "Ada" });
+const useCustom = api.createQuery("users/:id", async () => ({ count: 1 }));
+useCustom({ id: 1 }).setData(previous => ({ count: (previous?.count ?? 0) + 1 }));
+// @ts-expect-error custom query route parameters remain required
+useCustom();
+// @ts-expect-error custom query setter uses its response type
+useCustom({ id: 1 }).setData([]);

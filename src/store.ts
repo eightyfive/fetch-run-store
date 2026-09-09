@@ -164,17 +164,21 @@ export function executeQuery(
 export function setQueryData<T extends object>(
   ns: string,
   id: string,
-  data: T,
+  data: T | ((previous: T | undefined) => T),
 ): void {
   store.setState((state) => {
     const namespace = state.namespaces[ns] ?? { ...initialNamespace };
+
+    const nextData = typeof data === "function"
+      ? (data as (previous: T | undefined) => T)(namespace.data[id] as T | undefined)
+      : data;
 
     return {
       namespaces: {
         ...state.namespaces,
         [ns]: {
           ...namespace,
-          data: { ...namespace.data, [id]: data },
+          data: { ...namespace.data, [id]: nextData },
         },
       },
     };

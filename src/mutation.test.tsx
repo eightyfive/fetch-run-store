@@ -3,7 +3,7 @@ import { act, render, renderHook } from "@testing-library/react";
 
 import { Api } from "fetch-run";
 import { createApiStore } from "./api";
-import { executeQuery, store } from "./store";
+import { store } from "./store";
 
 import { createMutation } from "./mutation";
 
@@ -71,89 +71,6 @@ test("keeps loading true until every overlapping mutation settles", async () => 
   expect(result[1]).toBe(false);
 });
 
-test.each(["create", "update"] as const)(
-  "%s setData updates only the resource and lets a pending read replace it",
-  async (method) => {
-    const baseUrl = `https://${method}-optimistic.example.test`;
-    const api = Api.create(baseUrl);
-    const apiStore = createApiStore(api);
-    type User = { id: string; name: string };
-    const request = deferred<User>();
-    const get = jest.spyOn(api, "get").mockReturnValue(request.promise);
-    const resource = apiStore.route("organizations/:organizationId/users");
-    const useRead = resource.read<User>();
-    const useCreate = resource.create<{ name: string }, User>();
-    const useUpdate = resource.update<{ name: string }, User>();
-    const useMutation = method === "create"
-      ? () => {
-          const [mutate, pending, error, setData] = useCreate(params);
-          return [mutate, pending, error, setData] as const;
-        }
-      : () => {
-          const [mutate, pending, error, setData] = useUpdate("42/1", params);
-          return [mutate, pending, error, setData] as const;
-        };
-    const params = { organizationId: "a/b" };
-    const key = "organizations/a%2Fb/users/42%2F1";
-    await executeQuery(baseUrl, "organizations/a%2Fb/users", async () => []);
-    await executeQuery(baseUrl, `${key}?details=1`, async () => ({ name: "variant" }));
-    const read = renderHook(() => useRead("42/1", params));
-    const mutation = renderHook(() => useMutation());
-    const setData = mutation.result.current[3];
-
-    act(() => {
-      if (method === "create") {
-        (setData as (id: string, data: User) => void)("42/1", { id: "42/1", name: "optimistic" });
-      } else {
-        (setData as (data: User) => void)({ id: "42/1", name: "optimistic" });
-      }
-    });
-    expect(read.result.current.data).toEqual({ id: "42/1", name: "optimistic" });
-    expect(read.result.current.isFetching).toBe(true);
-    expect(mutation.result.current[1]).toBe(false);
-    expect(store.getState().namespaces[baseUrl].data["organizations/a%2Fb/users"]).toEqual([]);
-    expect(store.getState().namespaces[baseUrl].data[`${key}?details=1`]).toEqual({ name: "variant" });
-    mutation.rerender();
-    expect(mutation.result.current[3]).toBe(setData);
-    expect(get).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      request.resolve({ id: "42/1", name: "server" });
-      await request.promise;
-    });
-    expect(read.result.current.data).toEqual({ id: "42/1", name: "server" });
-    expect(read.result.current.isFetching).toBe(false);
-    read.unmount();
-    mutation.unmount();
-    apiStore.resetAll();
-  },
-);
-
-test("setData follows parent route parameters and preserves existing errors", async () => {
-  const baseUrl = "https://parent-optimistic.example.test";
-  const apiStore = createApiStore(Api.create(baseUrl));
-  const useCreate = apiStore.route("organizations/:organizationId/users")
-    .create<{ name: string }, { id: number; name: string }>();
-  const { result, rerender, unmount } = renderHook(
-    ({ organizationId }) => useCreate({ organizationId }),
-    { initialProps: { organizationId: "first" } },
-  );
-  act(() => result.current[3](1, { id: 1, name: "first" }));
-  rerender({ organizationId: "second" });
-  const error = new Error("offline");
-  await expect(executeQuery(baseUrl, "organizations/second/users/1", async () => {
-    throw error;
-  })).rejects.toBe(error);
-  act(() => result.current[3](1, { id: 1, name: "second" }));
-  const state = store.getState().namespaces[baseUrl];
-  expect(state.data["organizations/first/users/1"]).toEqual({ id: 1, name: "first" });
-  expect(state.data["organizations/second/users/1"]).toEqual({ id: 1, name: "second" });
-  expect(state.errors["organizations/second/users/1"]).toBe(error);
-  expect(state.fresh["organizations/second/users/1"]).toBeUndefined();
-  unmount();
-  apiStore.resetAll();
-});
-
 test("update and delete use the read URL and follow changed IDs and parents", async () => {
   const baseUrl = "https://resource-routes.example.test";
   const api = Api.create(baseUrl);
@@ -183,15 +100,15 @@ test("update and delete use the read URL and follow changed IDs and parents", as
     expect(get).toHaveBeenLastCalledWith(url);
     expect(put).toHaveBeenLastCalledWith(url, { name: "updated" });
     expect(remove).toHaveBeenLastCalledWith(url);
-    act(() => result.current.update[3]({ name: "optimistic" }));
-    expect(result.current.read.data).toEqual({ name: "optimistic" });
+    expect(result.current.update).toHaveLength(3);
+    expect(result.current.read.data).toEqual({ name: "server" });
   }
-  expect(store.getState().namespaces[baseUrl].data["organizations/a%2Fb/users/42%2F1"]).toEqual({ name: "optimistic" });
+  expect(store.getState().namespaces[baseUrl].data["organizations/a%2Fb/users/42%2F1"]).toEqual({ name: "server" });
   unmount();
   apiStore.resetAll();
 });
 
-test("create posts to the collection and writes response data to the explicit ID", async () => {
+test("create posts to the collection and returns a three-item mutation tuple", async () => {
   const api = Api.create("https://create-route.example.test");
   const post = jest.spyOn(api, "post").mockResolvedValue({ name: "created" });
   const apiStore = createApiStore(api);
@@ -199,12 +116,11 @@ test("create posts to the collection and writes response data to the explicit ID
   const { result, unmount } = renderHook(() => useCreate());
   await act(async () => {
     const data = await result.current[0]({ name: "created" });
-    result.current[3](42, data);
+    expect(data).toEqual({ name: "created" });
   });
   expect(post).toHaveBeenCalledWith("users", { name: "created" });
-  expect(store.getState().namespaces[api.baseUrl].data).toEqual({
-    "users/42": { name: "created" },
-  });
+  expect(result.current).toHaveLength(3);
+  expect(store.getState().namespaces[api.baseUrl]?.data ?? {}).toEqual({});
   unmount();
   apiStore.resetAll();
 });

@@ -34,7 +34,7 @@ export function createApiStore(api: Api) {
     route<R extends string>(route: R) {
       return {
         create<Req extends object | void, Res extends object | void>() {
-          return createCreateMutation<R, Req, Res>(ns, route, (url, req: Req) =>
+          return createCreateMutation<R, Req, Res>(route, (url, req: Req) =>
             api.post<Res, Req>(url, req)
           );
         },
@@ -44,7 +44,7 @@ export function createApiStore(api: Api) {
           );
         },
         update<Req extends object | void, Res extends object | void>() {
-          return createUpdateMutation<R, Req, Res>(ns, route, (url, req: Req) =>
+          return createUpdateMutation<R, Req, Res>(route, (url, req: Req) =>
             api.put<Res, Req>(url, req)
           );
         },

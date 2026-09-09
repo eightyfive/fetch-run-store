@@ -1,11 +1,5 @@
 # Changelog
 
-## Unreleased
-
-- Breaking: rename API store cache controls from `invalidateQuery(id)`,
-  `invalidateQueries()`, and `resetQueries()` to `invalidate(id)`,
-  `invalidateAll()`, and `resetAll()`. Behavior and API namespace scope are unchanged.
-
 ## 0.1.0 (unreleased)
 
 Initial public release candidate:

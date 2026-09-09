@@ -25,11 +25,11 @@ export function createApiStore(api: Api) {
 
     createMutation,
 
-    invalidateQuery: (id: string) => invalidateQueryForNamespace(ns, id),
+    invalidate: (id: string) => invalidateQueryForNamespace(ns, id),
 
-    invalidateQueries: () => invalidateQueriesForNamespace(ns),
+    invalidateAll: () => invalidateQueriesForNamespace(ns),
 
-    resetQueries: () => resetQueriesForNamespace(ns),
+    resetAll: () => resetQueriesForNamespace(ns),
 
     route<R extends string>(route: R) {
       return {

@@ -27,7 +27,8 @@ select 0.1.0 when publishing from `main`.
 ## Usage
 
 Create one API store for each `Api` instance, then define your application
-hooks from typed routes:
+hooks from typed routes. Name the returned factory for its route—for example,
+`const chatFactory = apiStore.route("chats")`. Its methods create hooks:
 
 ```ts
 import { Api } from "fetch-run";
@@ -38,14 +39,16 @@ export const apiStore = createApiStore(api);
 
 type User = { id: number; name: string };
 
-const users = apiStore.route("users");
-export const useUsers = users.list<User>();
-export const useUser = users.read<User>();
-export const useCreateUser = users.create<{ name: string }, User>();
-export const useUpdateUser = users.update<{ name: string }, User>();
+const userFactory = apiStore.route("users");
+export const useUsers = userFactory.list<User>();
+export const useUser = userFactory.read<User>();
+export const useCreateUser = userFactory.create<{ name: string }, User>();
+export const useUpdateUser = userFactory.update<{ name: string }, User>();
 
-const organizationUsers = apiStore.route("organizations/:organizationId/users");
-export const useOrganizationUsers = organizationUsers.list<User>();
+const organizationUsersFactory = apiStore.route(
+  "organizations/:organizationId/users",
+);
+export const useOrganizationUsers = organizationUsersFactory.list<User>();
 ```
 
 Caches are shared by `api.baseUrl`: separate instances with the same base URL
@@ -106,10 +109,10 @@ reset them; mutations do not invalidate queries automatically.
 route declares them. All three target the individual resource at `resource/:id`:
 
 ```ts
-const users = apiStore.route("organizations/:organizationId/users");
-const useUser = users.read<User>();
-const useUpdateUser = users.update<{ name: string }, User>();
-const useDeleteUser = users.delete();
+const userFactory = apiStore.route("organizations/:organizationId/users");
+const useUser = userFactory.read<User>();
+const useUpdateUser = userFactory.update<{ name: string }, User>();
+const useDeleteUser = userFactory.delete();
 
 // Inside a component:
 useUser(42, { organizationId: "acme" });
@@ -124,8 +127,10 @@ parameters. List and search setters accept arrays. Required route and ID
 arguments remain required.
 
 ```tsx
-const useLeague = apiStore.route("leagues").read<League>();
-const useUpdateLeague = apiStore.route("leagues").update<{ name: string }, League>();
+const leagueFactory = apiStore.route("leagues");
+const useLeague = leagueFactory.read<League>();
+const useCreateLeague = leagueFactory.create<{ name: string }, League>();
+const useUpdateLeague = leagueFactory.update<{ name: string }, League>();
 
 // Inside a component:
 const { data: league, setData, invalidate } = useLeague(leagueId);
@@ -142,7 +147,9 @@ async function rename(name: string) {
 
 // Updaters read the latest cached value, which may be undefined:
 const { setData: setLeagues } = apiStore.route("leagues").list<League>()();
-setLeagues(previous => (previous ?? []).filter(item => item.id !== removedId));
+setLeagues((previous) =>
+  (previous ?? []).filter((item) => item.id !== removedId),
+);
 ```
 
 `setData` updates subscribed hooks immediately. Only cached data changes:

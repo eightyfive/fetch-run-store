@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 
-import { executeQuery, invalidateQuery, setQueryData, useApiStore } from "./store";
+import { executeQuery, invalidateQuery, useApiStore } from "./store";
 import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
 import { buildRoute } from "./utils";
 
@@ -11,7 +11,6 @@ export type Query<T> = {
   isFetching: boolean;
   isLoading: boolean;
   refetch: () => Promise<void>;
-  setData: (data: T | ((previous: T | undefined) => T)) => void;
 };
 
 export function createQuery<R extends string, Res extends object>(
@@ -50,13 +49,6 @@ export function createQuery<R extends string, Res extends object>(
       return executeQuery(ns, queryId, () => execute(queryId));
     }, [execute, ns, queryId]);
 
-    const setData = useCallback(
-      (data: Res | ((previous: Res | undefined) => Res)): void => {
-        setQueryData<Res>(ns, queryId, data);
-      },
-      [ns, queryId],
-    );
-
     // Effects
     useEffect(() => {
       if (!error && !isFresh) {
@@ -72,7 +64,6 @@ export function createQuery<R extends string, Res extends object>(
       isFetching,
       isLoading,
       refetch,
-      setData,
     };
   };
 

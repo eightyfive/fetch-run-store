@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Replace query hook setters with `apiStore.setData(key: string, data: unknown): void`.
+  Writes accept direct values, create missing entries, and notify subscribers
+  while preserving freshness, errors, and pending requests. Compute optimistic
+  values before writing; functional updaters are no longer supported.
+- Query and mutation hooks expose no cache setters; mutation results are unchanged.
+
 ## 0.1.0 (unreleased)
 
 Initial public release candidate:

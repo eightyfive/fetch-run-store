@@ -74,44 +74,44 @@ useDelete(42);
 useDelete();
 api.route("users").create<{ name: string }, { name: string }>()();
 api.route("users").update<{ name: string }, void>()(42);
-// @ts-expect-error global untyped cache writes are not exposed
+const writeResult: void = api.setData("users/42", { id: 42, name: "Ada" });
+api.setData("count", 42);
+api.setData("empty", null);
+api.setData("missing", undefined);
+// @ts-expect-error cache keys must be strings
+api.setData(42, {});
+// @ts-expect-error replacement data is required
+api.setData("users/42");
+// @ts-expect-error the setter has no response type parameter
+api.setData<User>("users/42", { id: 42, name: "Ada" });
+// @ts-expect-error the old global setter name is not exposed
 api.setQueryData("users", []);
 
-const user = useUser(42, { organizationId: "acme" });
-user.setData({ id: 42, name: "Ada" });
-user.setData((previous) => {
-  const value: User | undefined = previous;
-  // @ts-expect-error previous may be undefined
-  const required: User = previous;
-  return { id: 42, name: value?.name ?? "Ada" };
-});
-// @ts-expect-error data must match the query response
-user.setData({ id: "42", name: "Ada" });
-// @ts-expect-error setters are already bound to an ID
-user.setData(42, { id: 42, name: "Ada" });
-// @ts-expect-error undefined is not response data
-user.setData(undefined);
-// @ts-expect-error updater must return response data
-user.setData(() => undefined);
+function setUserData(id: number, data: User): void {
+  api.setData(`users/${id}`, data);
+}
+setUserData(42, { id: 42, name: "Ada" });
+// @ts-expect-error application helpers enforce the response type
+setUserData(42, { id: "42", name: "Ada" });
+
+// @ts-expect-error read hooks have no setter
+useUser(42, { organizationId: "acme" }).setData;
 // @ts-expect-error read IDs remain required
 api.route("users").read<User>()();
-const list = useUsers({ organizationId: "acme" });
-list.setData([{ id: 42, name: "Ada" }]);
-list.setData((previous) => [...(previous ?? []), { id: 43, name: "Grace" }]);
-// @ts-expect-error lists require arrays
-list.setData({ id: 42, name: "Ada" });
-const search = useSearch(undefined, { organizationId: "acme" });
-search.setData((previous) => previous ?? []);
-// @ts-expect-error searches require arrays
-search.setData({ id: 42, name: "Ada" });
+// @ts-expect-error list hooks have no setter
+useUsers({ organizationId: "acme" }).setData;
+// @ts-expect-error search hooks have no setter
+useSearch(undefined, { organizationId: "acme" }).setData;
 const useCustom = api.createQuery("users/:id", async () => ({ count: 1 }));
-useCustom({ id: 1 }).setData((previous) => ({
-  count: (previous?.count ?? 0) + 1,
-}));
+// @ts-expect-error custom queries have no setter
+useCustom({ id: 1 }).setData;
 // @ts-expect-error custom query route parameters remain required
 useCustom();
-// @ts-expect-error custom query setter uses its response type
-useCustom({ id: 1 }).setData([]);
+const useCustomMutation = api.createMutation("users", async () => ({ id: 1 }));
+// @ts-expect-error custom mutation results have only three tuple items
+useCustomMutation()[3];
+// @ts-expect-error delete results have only three tuple items
+useDelete(42)[3];
 
 async function checkMutationResults() {
   const result: MutationResult<User> = await useCreateUser({

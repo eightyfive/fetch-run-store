@@ -1,9 +1,18 @@
 import { useCallback, useState } from "react";
-import { ExtractRouteParams, ResourceId, WithOptionalRouteParams, IdWithOptionalRouteParams } from "./types";
+import {
+  ExtractRouteParams,
+  ResourceId,
+  WithOptionalRouteParams,
+  IdWithOptionalRouteParams,
+} from "./types";
 import { buildRoute } from "./utils";
 
+export type MutationResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: Error };
+
 export type Mutation<Req extends object | void, Res extends object | void> = [
-  (data: Req) => Promise<Res>,
+  (data: Req) => Promise<MutationResult<Res>>,
   boolean,
   Error | null,
 ];
@@ -25,19 +34,19 @@ export function createMutation<
 
     // Methods
     const mutate = useCallback(
-      async (data: Req): Promise<Res> => {
+      async (data: Req): Promise<MutationResult<Res>> => {
         setError(null);
         setPendingCount((count) => count + 1);
 
         try {
           const res = await execute(url, data);
 
-          return res;
+          return { ok: true, data: res };
         } catch (err) {
           const normalizedError =
             err instanceof Error ? err : new Error(String(err));
           setError(normalizedError);
-          throw normalizedError;
+          return { ok: false, error: normalizedError };
         } finally {
           setPendingCount((count) => count - 1);
         }
@@ -75,24 +84,38 @@ export function createUpdateMutation<
   const fullRoute = `${route}/:id` as `${R}/:id`;
   const useMutation = createMutation(fullRoute, execute);
 
-  const useUpdate = (id: ResourceId, routeParams: ParentParams = {} as ParentParams) => {
+  const useUpdate = (
+    id: ResourceId,
+    routeParams: ParentParams = {} as ParentParams,
+  ) => {
     const params = { ...routeParams, id } as AllParams;
     return useMutation(params);
   };
 
-  return useUpdate as IdWithOptionalRouteParams<ParentParams, Mutation<Req, Res>>;
+  return useUpdate as IdWithOptionalRouteParams<
+    ParentParams,
+    Mutation<Req, Res>
+  >;
 }
 
-export function createDeleteMutation<R extends string, Res extends object | void>(
-  route: R,
-  execute: (url: string) => Promise<Res>,
-) {
+export function createDeleteMutation<
+  R extends string,
+  Res extends object | void,
+>(route: R, execute: (url: string) => Promise<Res>) {
   type AllParams = ExtractRouteParams<`${R}/:id`>;
   type ParentParams = Omit<AllParams, "id">;
-  const useMutation = createMutation<`${R}/:id`, void, Res>(`${route}/:id`, execute);
+  const useMutation = createMutation<`${R}/:id`, void, Res>(
+    `${route}/:id`,
+    execute,
+  );
 
-  const useDelete = (id: ResourceId, routeParams: ParentParams = {} as ParentParams) =>
-    useMutation({ ...routeParams, id } as AllParams);
+  const useDelete = (
+    id: ResourceId,
+    routeParams: ParentParams = {} as ParentParams,
+  ) => useMutation({ ...routeParams, id } as AllParams);
 
-  return useDelete as IdWithOptionalRouteParams<ParentParams, Mutation<void, Res>>;
+  return useDelete as IdWithOptionalRouteParams<
+    ParentParams,
+    Mutation<void, Res>
+  >;
 }

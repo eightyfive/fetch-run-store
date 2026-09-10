@@ -7,9 +7,14 @@ import {
   waitFor,
 } from "@testing-library/react";
 
+import { Api } from "fetch-run";
+import { createApiStore } from "./api";
+
 import { createQuery } from "./query";
 import { createListQuery, createReadQuery, createSearchQuery } from "./resource";
 import { invalidateQueries, invalidateQuery, resetQueries, store } from "./store";
+
+const apiStore = createApiStore(Api.create("query-test"));
 
 afterEach(() => {
   cleanup();
@@ -151,34 +156,23 @@ test("builds parameterized search URLs before using them as cache keys", async (
   );
 });
 
-test("setData uses the latest data and lets the in-flight server response win", async () => {
+test("setData notifies subscribers and lets the in-flight server response win", async () => {
   let resolve!: (value: { count: number }) => void;
   const request = new Promise<{ count: number }>(res => { resolve = res; });
   const execute = jest.fn(() => request);
   const useQuery = createQuery("query-test", "users/:id", execute);
-  const { result, rerender } = renderHook(() => useQuery({ id: "a/b" }));
-  const setData = result.current.setData;
+  const { result } = renderHook(() => useQuery({ id: "a/b" }));
+  const peer = renderHook(() => useQuery({ id: "a/b" }));
   const before = store.getState().namespaces["query-test"];
-  const previousValues: ({ count: number } | undefined)[] = [];
-  act(() => {
-    setData(previous => {
-      previousValues.push(previous);
-      return { count: (previous?.count ?? 0) + 1 };
-    });
-    setData(previous => {
-      previousValues.push(previous);
-      return { count: (previous?.count ?? 0) + 1 };
-    });
-  });
-  expect(previousValues).toEqual([undefined, { count: 1 }]);
+  act(() => apiStore.setData("users/a%2Fb", { count: 2 }));
+  expect(peer.result.current.data).toEqual({ count: 2 });
+  expect(result.current).not.toHaveProperty("setData");
   expect(result.current.data).toEqual({ count: 2 });
   const after = store.getState().namespaces["query-test"];
   expect(after.errors).toBe(before.errors);
   expect(after.fresh).toBe(before.fresh);
   expect(after.fetching).toBe(before.fetching);
   expect(after.revision).toBe(before.revision);
-  rerender();
-  expect(result.current.setData).toBe(setData);
   expect(execute).toHaveBeenCalledTimes(1);
   await act(async () => { resolve({ count: 10 }); await request; });
   expect(result.current.data).toEqual({ count: 10 });
@@ -192,7 +186,7 @@ test("setData preserves errors and stale state", async () => {
   const { result } = renderHook(() => useQuery());
   await waitFor(() => expect(result.current.error).toBe(error));
   const before = store.getState().namespaces["query-test"];
-  act(() => result.current.setData({ name: "local" }));
+  act(() => apiStore.setData("users", { name: "local" }));
   expect(result.current.data).toEqual({ name: "local" });
   expect(result.current.error).toBe(error);
   const after = store.getState().namespaces["query-test"];
@@ -218,41 +212,54 @@ test("setData follows exact search keys and parents without changing fresh sibli
     { initialProps: { organizationId: "a/b", name: "Ada" } },
   );
   await waitFor(() => expect(result.current.search.isFetching).toBe(false));
-  const firstSetter = result.current.search.setData;
-  act(() => firstSetter([{ name: "local" }]));
+  act(() => apiStore.setData("organizations/a%2Fb/users?name=Ada", [{ name: "local" }]));
+  expect(result.current.search.data).toEqual([{ name: "local" }]);
   expect(result.current.list.data).toEqual([{ name: "server" }]);
   expect(result.current.other.data).toEqual([{ name: "server" }]);
   expect(store.getState().namespaces["query-test"].fresh["organizations/a%2Fb/users?name=Ada"]).toBe(true);
   for (const props of [{ organizationId: "a/b", name: "Grace" }, { organizationId: "second", name: "Grace" }]) {
     rerender(props);
     await waitFor(() => expect(result.current.search.isFetching).toBe(false));
-    expect(result.current.search.setData).not.toBe(firstSetter);
-    act(() => result.current.search.setData([{ name: props.name }]));
+    act(() => apiStore.setData(`organizations/${encodeURIComponent(props.organizationId)}/users?name=${props.name}`, [{ name: props.name }]));
   }
   const data = store.getState().namespaces["query-test"].data;
   expect(data["organizations/a%2Fb/users?name=Ada"]).toEqual([{ name: "local" }]);
   expect(data["organizations/a%2Fb/users?name=Grace"]).toEqual([{ name: "Grace" }]);
   expect(data["organizations/second/users?name=Grace"]).toEqual([{ name: "Grace" }]);
-  act(() => firstSetter([{ name: "original key" }]));
+  act(() => apiStore.setData("organizations/a%2Fb/users?name=Ada", [{ name: "original key" }]));
   expect(result.current.search.data).toEqual([{ name: "Grace" }]);
   expect(store.getState().namespaces["query-test"].data["organizations/a%2Fb/users?name=Ada"]).toEqual([{ name: "original key" }]);
 });
 
-test("read setters follow encoded resource IDs and list setters share the empty-search key", async () => {
+test("setData targets encoded resource IDs and shares the empty-search key", async () => {
   const execute = async () => ({ name: "server" });
   const useRead = createReadQuery("query-test", "teams/:teamId/users", execute);
   const read = renderHook(({ id }) => useRead(id, { teamId: "a/b" }), { initialProps: { id: "1/2" } });
   await waitFor(() => expect(read.result.current.isFetching).toBe(false));
-  act(() => read.result.current.setData({ name: "first" }));
+  act(() => apiStore.setData("teams/a%2Fb/users/1%2F2", { name: "first" }));
   read.rerender({ id: "3?4" });
   await waitFor(() => expect(read.result.current.isFetching).toBe(false));
-  act(() => read.result.current.setData({ name: "second" }));
+  act(() => apiStore.setData("teams/a%2Fb/users/3%3F4", { name: "second" }));
   expect(store.getState().namespaces["query-test"].data["teams/a%2Fb/users/1%2F2"]).toEqual({ name: "first" });
   expect(store.getState().namespaces["query-test"].data["teams/a%2Fb/users/3%3F4"]).toEqual({ name: "second" });
   const useList = createListQuery("query-test", "users", async () => [] as { name: string }[]);
   const useSearch = createSearchQuery("query-test", "users", async () => [] as { name: string }[]);
   const queries = renderHook(() => ({ list: useList(), search: useSearch(new URLSearchParams()) }));
   await waitFor(() => expect(queries.result.current.list.isFetching).toBe(false));
-  act(() => queries.result.current.list.setData([{ name: "local" }]));
+  act(() => apiStore.setData("users", [{ name: "local" }]));
   expect(queries.result.current.search.data).toEqual([{ name: "local" }]);
+});
+
+test("a seeded entry remains stale and fetches when a query mounts", async () => {
+  apiStore.setData("seeded", { name: "local" });
+  let resolve!: (value: { name: string }) => void;
+  const request = new Promise<{ name: string }>((res) => { resolve = res; });
+  const execute = jest.fn(() => request);
+  const useQuery = apiStore.createQuery("seeded", execute);
+  const { result } = renderHook(() => useQuery());
+  expect(result.current.data).toEqual({ name: "local" });
+  expect(result.current.isFetching).toBe(true);
+  expect(execute).toHaveBeenCalledTimes(1);
+  await act(async () => { resolve({ name: "server" }); await request; });
+  expect(result.current.data).toEqual({ name: "server" });
 });

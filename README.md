@@ -120,45 +120,60 @@ useUpdateUser(42, { organizationId: "acme" });
 useDeleteUser(42, { organizationId: "acme" });
 ```
 
-Query results (`read`, `list`, `search`, and custom queries) expose `setData(data)`.
-The setter accepts the query's response type and writes only to that query's
-exact cache key, including encoded route parameters, resource ID, and search
-parameters. List and search setters accept arrays. Required route and ID
-arguments remain required.
+`apiStore.setData(key: string, data: unknown): void` writes a direct value to
+one exact cache key in the API's namespace, creating the entry if it is missing.
+Use the resolved route, including encoded route parameters, resource ID, and
+any nonempty `URLSearchParams.toString()` suffix. For example:
+
+```ts
+apiStore.setData("matches/42", match);
+apiStore.setData("matches?status=active", activeMatches);
+```
+
+Query and mutation hooks do not expose setters. Application services can provide
+typed helpers:
+
+```ts
+export function setMatchData(id: number, data: Match) {
+  apiStore.setData(`matches/${id}`, data);
+}
+```
+
+Optimistic updates must compute the next value before calling the setter:
 
 ```tsx
-const leagueFactory = apiStore.route("leagues");
-const useLeague = leagueFactory.read<League>();
-const useCreateLeague = leagueFactory.create<{ name: string }, League>();
-const useUpdateLeague = leagueFactory.update<{ name: string }, League>();
+const useMatch = apiStore.route("matches").read<Match>();
+const useUpdateMatch = apiStore.route("matches").update<{ name: string }, Match>();
 
 // Inside a component:
-const { data: league, setData, invalidate } = useLeague(leagueId);
-const [updateLeague, isUpdating, updateError] = useUpdateLeague(leagueId);
+const { data: match, invalidate } = useMatch(matchId);
+const [updateMatch, isUpdating, updateError] = useUpdateMatch(matchId);
 
 async function rename(name: string) {
-  if (league) setData({ ...league, name });
+  if (match) {
+    const nextMatch = { ...match, name };
+    setMatchData(matchId, nextMatch);
+  }
   try {
-    await updateLeague({ name });
+    await updateMatch({ name });
   } finally {
     invalidate();
   }
 }
-
-// Updaters read the latest cached value, which may be undefined:
-const { setData: setLeagues } = apiStore.route("leagues").list<League>()();
-setLeagues((previous) =>
-  (previous ?? []).filter((item) => item.id !== removedId),
-);
 ```
 
 `setData` updates subscribed hooks immediately. Only cached data changes:
-freshness, errors, and fetching state are preserved. Pending requests continue
-normally, and successful server responses overwrite local data. The server
-remains the source of truth. Failed requests report errors while retaining cached
-data. Other cache keys are unchanged; invalidate related queries separately when
-needed. The setter sends no request. Updaters must return the query's response
-type; `undefined` is not accepted as replacement data.
+freshness, errors, and fetching state are preserved. A new entry remains stale
+and fetches normally when a query mounts. Pending requests continue normally,
+and successful server responses overwrite local data. Failed requests report
+errors while retaining cached data. Other cache keys are unchanged; invalidate
+related queries separately when needed. The setter sends no request.
+
+Any value, including `null` and `undefined`, can be stored. Functional updaters
+are not supported: passing a function stores that function as data without
+calling it. The string key does not infer a response type; use application
+helpers when you need type checking.
+
 Create, update, delete, and custom mutation results are three-item tuples:
 `[mutate, isPending, error]`.
 

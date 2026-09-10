@@ -1,5 +1,5 @@
 import { Api } from "fetch-run";
-import { createApiStore } from "../../src";
+import { createApiStore, MutationResult } from "../../src";
 
 type User = { id: number; name: string };
 
@@ -79,7 +79,7 @@ api.setQueryData("users", []);
 
 const user = useUser(42, { organizationId: "acme" });
 user.setData({ id: 42, name: "Ada" });
-user.setData(previous => {
+user.setData((previous) => {
   const value: User | undefined = previous;
   // @ts-expect-error previous may be undefined
   const required: User = previous;
@@ -97,16 +97,46 @@ user.setData(() => undefined);
 api.route("users").read<User>()();
 const list = useUsers({ organizationId: "acme" });
 list.setData([{ id: 42, name: "Ada" }]);
-list.setData(previous => [...(previous ?? []), { id: 43, name: "Grace" }]);
+list.setData((previous) => [...(previous ?? []), { id: 43, name: "Grace" }]);
 // @ts-expect-error lists require arrays
 list.setData({ id: 42, name: "Ada" });
 const search = useSearch(undefined, { organizationId: "acme" });
-search.setData(previous => previous ?? []);
+search.setData((previous) => previous ?? []);
 // @ts-expect-error searches require arrays
 search.setData({ id: 42, name: "Ada" });
 const useCustom = api.createQuery("users/:id", async () => ({ count: 1 }));
-useCustom({ id: 1 }).setData(previous => ({ count: (previous?.count ?? 0) + 1 }));
+useCustom({ id: 1 }).setData((previous) => ({
+  count: (previous?.count ?? 0) + 1,
+}));
 // @ts-expect-error custom query route parameters remain required
 useCustom();
 // @ts-expect-error custom query setter uses its response type
 useCustom({ id: 1 }).setData([]);
+
+async function checkMutationResults() {
+  const result: MutationResult<User> = await useCreateUser({
+    organizationId: "acme",
+  })[0]({ name: "Ada" });
+  // @ts-expect-error data is only available after checking success
+  result.data;
+  if (result.ok) {
+    const user: User = result.data;
+    // @ts-expect-error successful results do not have errors
+    result.error;
+  } else {
+    const error: Error = result.error;
+    // @ts-expect-error failed results do not have data
+    result.data;
+  }
+  const removed: MutationResult<void> = await useDelete(42)[0]();
+  if (removed.ok) {
+    const data: void = removed.data;
+  }
+  const updated: MutationResult<User> = await useUpdateUser(42)[0]({
+    name: "Ada",
+  });
+  const custom = api.createMutation("users/:id", async (_url, _data: void) => ({
+    id: 1,
+  }));
+  const outcome: MutationResult<{ id: number }> = await custom({ id: 1 })[0]();
+}

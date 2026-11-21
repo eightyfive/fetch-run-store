@@ -76,7 +76,7 @@ export function createApiStore(api: Api) {
         );
       }
 
-      function remove<Res extends object | void = void, Data = Res>(
+      function _delete<Res extends object | void = void, Data = Res>(
         transform?: (response: Exclude<Res, void>) => Data,
       ) {
         return createDeleteMutation<R, Res, Data>(
@@ -121,7 +121,7 @@ export function createApiStore(api: Api) {
         );
       }
 
-      return { create, read, update, delete: remove, list, search };
+      return { create, read, update, delete: _delete, list, search };
     },
   };
 }

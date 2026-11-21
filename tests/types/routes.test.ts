@@ -1,5 +1,7 @@
 import { Api } from "fetch-run";
 import { createApiStore, MutationResult } from "../../src";
+import { createQuery } from "../../src/query";
+import { createMutation } from "../../src/mutation";
 
 type User = { id: number; name: string };
 
@@ -140,3 +142,253 @@ async function checkMutationResults() {
   }));
   const outcome: MutationResult<{ id: number }> = await custom({ id: 1 })[0]();
 }
+
+// Equality assertions detect accidental widening (including `any`) in inference.
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2
+    ? true
+    : false;
+type Expect<T extends true> = T;
+type LeagueResponse = {
+  league_id: number;
+  league_name: string;
+  rawOnly: boolean;
+};
+type League = { id: number; name: string };
+type LeagueRequest = { name: string };
+const normalizeLeagueResponse = (response: LeagueResponse): League => ({
+  id: response.league_id,
+  name: response.league_name,
+});
+const normalizeLeagues = (response: {
+  items: LeagueResponse[];
+  total: number;
+}) => response.items.map(normalizeLeagueResponse);
+const leagues = api.route("organizations/:organizationId/leagues");
+const params = { organizationId: "acme" };
+const useLeague = leagues.read(normalizeLeagueResponse);
+const league = useLeague(1, params);
+type ReadOutput = Expect<Equal<typeof league.data, League | undefined>>;
+// @ts-expect-error transformed reads do not expose raw fields
+league.data?.rawOnly;
+// @ts-expect-error transformed reads require parent parameters
+useLeague(1);
+// @ts-expect-error incorrect parent parameters are rejected
+useLeague(1, { organization: "acme" });
+// @ts-expect-error resource IDs remain string or number
+useLeague({ id: 1 }, params);
+const useLeagueList = leagues.list(normalizeLeagues);
+const leagueList = useLeagueList(params);
+type ListOutput = Expect<Equal<typeof leagueList.data, League[] | undefined>>;
+// @ts-expect-error list envelope is no longer exposed
+leagueList.data?.total;
+// @ts-expect-error list items do not expose wire fields
+leagueList.data?.[0].league_id;
+// @ts-expect-error transformed lists require route parameters
+useLeagueList();
+// @ts-expect-error incorrect list route parameters are rejected
+useLeagueList({ organization: "acme" });
+// @ts-expect-error lists still reject search parameters
+useLeagueList(params, new URLSearchParams());
+const useLeagueSearch = leagues.search(normalizeLeagues);
+const leagueSearch = useLeagueSearch(new URLSearchParams(), params);
+type SearchOutput = Expect<
+  Equal<typeof leagueSearch.data, League[] | undefined>
+>;
+// @ts-expect-error search items do not expose wire fields
+leagueSearch.data?.[0].rawOnly;
+// @ts-expect-error transformed searches require route parameters
+useLeagueSearch(new URLSearchParams());
+// @ts-expect-error incorrect search route parameters are rejected
+useLeagueSearch(undefined, { organization: "acme" });
+const simpleLeagues = api.route("leagues");
+const plainRead = simpleLeagues.read<League>()(1);
+type SimpleRead = Expect<Equal<typeof plainRead.data, League | undefined>>;
+const plainList = simpleLeagues.list<League>()();
+const plainSearch = simpleLeagues.search<League>()();
+type PlainList = Expect<Equal<typeof plainList.data, League[] | undefined>>;
+type PlainSearch = Expect<Equal<typeof plainSearch.data, League[] | undefined>>;
+simpleLeagues.read(normalizeLeagueResponse)(1);
+simpleLeagues.list(normalizeLeagues)();
+simpleLeagues.search(normalizeLeagues)();
+
+const useLeagueCreate = leagues.create<LeagueRequest, LeagueResponse, League>(
+  normalizeLeagueResponse,
+);
+const useLeagueUpdate = leagues.update<LeagueRequest, LeagueResponse, League>(
+  normalizeLeagueResponse,
+);
+// With no request type specified, the wire and output types are inferred.
+const inferredCreate = leagues.create(normalizeLeagueResponse);
+const inferredUpdate = leagues.update(normalizeLeagueResponse);
+const useLeagueDelete = leagues.delete(normalizeLeagueResponse);
+type SuccessData<T extends (...args: never[]) => unknown> =
+  Extract<Awaited<ReturnType<T>>, { ok: true }> extends { data: infer Data }
+    ? Data
+    : never;
+type CreateOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof useLeagueCreate>[0]>, League>
+>;
+type UpdateOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof useLeagueUpdate>[0]>, League>
+>;
+type DeleteOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof useLeagueDelete>[0]>, League>
+>;
+type InferredCreateOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof inferredCreate>[0]>, League>
+>;
+type InferredUpdateOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof inferredUpdate>[0]>, League>
+>;
+type CreatePayload = Expect<
+  Equal<Parameters<ReturnType<typeof useLeagueCreate>[0]>[0], LeagueRequest>
+>;
+type UpdatePayload = Expect<
+  Equal<Parameters<ReturnType<typeof useLeagueUpdate>[0]>[0], LeagueRequest>
+>;
+// @ts-expect-error transformed creates require parent parameters
+useLeagueCreate();
+// @ts-expect-error incorrect create route parameters are rejected
+useLeagueCreate({ organization: "acme" });
+// @ts-expect-error transformed updates require parent parameters
+useLeagueUpdate(1);
+// @ts-expect-error incorrect update route parameters are rejected
+useLeagueUpdate(1, { organization: "acme" });
+// @ts-expect-error transformed deletes require parent parameters
+useLeagueDelete(1);
+// @ts-expect-error incorrect delete route parameters are rejected
+useLeagueDelete(1, { organization: "acme" });
+// @ts-expect-error delete IDs remain required
+simpleLeagues.delete(normalizeLeagueResponse)();
+// @ts-expect-error request payload fields are preserved
+useLeagueCreate(params)[0]({ name: 123 });
+// @ts-expect-error required request fields remain required
+useLeagueUpdate(1, params)[0]({});
+// @ts-expect-error delete still has no request payload
+useLeagueDelete(1, params)[0]({ name: "League" });
+
+const wireLeague: LeagueResponse = {
+  league_id: 1,
+  league_name: "Premier",
+  rawOnly: true,
+};
+const executeLeague = async () => wireLeague;
+const executeLeagueMutation = async (_url: string, _data: LeagueRequest) =>
+  wireLeague;
+const transformedQuery = api.createQuery(
+  "leagues/:id",
+  executeLeague,
+  normalizeLeagueResponse,
+);
+const transformedMutation = api.createMutation(
+  "leagues/:id",
+  executeLeagueMutation,
+  normalizeLeagueResponse,
+);
+const queryValue = transformedQuery({ id: 1 });
+type QueryOutput = Expect<Equal<typeof queryValue.data, League | undefined>>;
+type MutationOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof transformedMutation>[0]>, League>
+>;
+type MutationPayload = Expect<
+  Equal<Parameters<ReturnType<typeof transformedMutation>[0]>[0], LeagueRequest>
+>;
+// @ts-expect-error low-level queries require route parameters
+transformedQuery();
+// @ts-expect-error incorrect low-level query parameters are rejected
+transformedQuery({ leagueId: 1 });
+// @ts-expect-error raw-only fields are absent from low-level query results
+queryValue.data?.rawOnly;
+// @ts-expect-error low-level mutations require route parameters
+transformedMutation();
+// @ts-expect-error incorrect low-level mutation parameters are rejected
+transformedMutation({ leagueId: 1 });
+// @ts-expect-error low-level mutation request fields are preserved
+transformedMutation({ id: 1 })[0]({ name: 123 });
+const plainQuery = api.createQuery("leagues", executeLeague)();
+const plainMutation = api.createMutation("leagues", executeLeagueMutation);
+type PlainQueryOutput = Expect<
+  Equal<typeof plainQuery.data, LeagueResponse | undefined>
+>;
+type PlainMutationOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof plainMutation>[0]>, LeagueResponse>
+>;
+type PlainMutationPayload = Expect<
+  Equal<Parameters<ReturnType<typeof plainMutation>[0]>[0], LeagueRequest>
+>;
+type PlainCreateOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof useCreateUser>[0]>, User>
+>;
+type PlainUpdateOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof useUpdateUser>[0]>, User>
+>;
+type PlainDeleteOutput = Expect<
+  Equal<SuccessData<ReturnType<typeof useDelete>[0]>, void>
+>;
+// @ts-expect-error untransformed request payloads remain checked
+plainMutation()[0]({ name: 123 });
+// @ts-expect-error untransformed create payloads remain checked
+useCreateUser(params)[0]({ name: 123 });
+// @ts-expect-error untransformed update payloads remain checked
+useUpdateUser(1)[0]({});
+
+const emptyMutation = api.createMutation(
+  "leagues",
+  async (_url, _data: void): Promise<void> => undefined,
+);
+type EmptyMutation = Expect<
+  Equal<SuccessData<ReturnType<typeof emptyMutation>[0]>, void>
+>;
+const maybeEmptyMutation = api.createMutation(
+  "leagues",
+  async (_url, _data: void): Promise<LeagueResponse | undefined> => undefined,
+  normalizeLeagueResponse,
+);
+type MaybeEmptyMutation = Expect<
+  Equal<
+    SuccessData<ReturnType<typeof maybeEmptyMutation>[0]>,
+    League | undefined
+  >
+>;
+const emptyQuery = api.createQuery(
+  "leagues",
+  async () => undefined,
+  normalizeLeagueResponse,
+)();
+type EmptyQuery = Expect<Equal<typeof emptyQuery.data, League | undefined>>;
+
+async function checkTransformedMutationFields() {
+  const results = [
+    await useLeagueCreate(params)[0]({ name: "Premier" }),
+    await useLeagueUpdate(1, params)[0]({ name: "Premier" }),
+    await useLeagueDelete(1, params)[0](),
+    await transformedMutation({ id: 1 })[0]({ name: "Premier" }),
+  ];
+  for (const result of results) {
+    if (result.ok) {
+      type Output = Expect<Equal<typeof result.data, League>>;
+      // @ts-expect-error successful transformed mutations hide raw-only fields
+      result.data.rawOnly;
+    }
+  }
+}
+
+// The underlying factories preserve the same contracts without an API store.
+const directQuery = createQuery("type-test", "leagues/:id", executeLeague, normalizeLeagueResponse);
+const directMutation = createMutation("leagues/:id", executeLeagueMutation, normalizeLeagueResponse);
+type DirectQueryOutput = Expect<Equal<ReturnType<typeof directQuery>["data"], League | undefined>>;
+type DirectMutationOutput = Expect<Equal<SuccessData<ReturnType<typeof directMutation>[0]>, League>>;
+type DirectMutationPayload = Expect<Equal<Parameters<ReturnType<typeof directMutation>[0]>[0], LeagueRequest>>;
+// @ts-expect-error direct queries still require their route parameters
+directQuery();
+// @ts-expect-error direct mutations still require their route parameters
+directMutation();
+// @ts-expect-error direct mutation request fields remain typed
+directMutation({ id: 1 })[0]({ name: 1 });
+// @ts-expect-error direct query data contains only the transformed fields
+directQuery({ id: 1 }).data?.rawOnly;
+const directPlainQuery = createQuery("type-test", "leagues", executeLeague);
+const directPlainMutation = createMutation("leagues", executeLeagueMutation);
+type DirectPlainQuery = Expect<Equal<ReturnType<typeof directPlainQuery>["data"], LeagueResponse | undefined>>;
+type DirectPlainMutation = Expect<Equal<SuccessData<ReturnType<typeof directPlainMutation>[0]>, LeagueResponse>>;

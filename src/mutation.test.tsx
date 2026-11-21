@@ -184,3 +184,91 @@ test("create posts to the collection and returns a three-item mutation tuple", a
   unmount();
   apiStore.resetAll();
 });
+
+test.each(["custom", "create", "update", "delete"] as const)(
+  "%s returns transformed mutation responses and preserves empty bodies",
+  async (kind) => {
+    const api = Api.create(`https://transformed-${kind}.example.test`);
+    const raw = { league_id: 7, rawOnly: true };
+    const execute = jest
+      .fn<Promise<typeof raw | undefined>, [string, { name: string }]>()
+      .mockResolvedValueOnce(raw)
+      .mockResolvedValueOnce(undefined);
+    const post = jest
+      .spyOn(api, "post")
+      .mockResolvedValueOnce(raw)
+      .mockResolvedValueOnce(undefined);
+    const put = jest
+      .spyOn(api, "put")
+      .mockResolvedValueOnce(raw)
+      .mockResolvedValueOnce(undefined);
+    const remove = jest
+      .spyOn(api, "delete")
+      .mockResolvedValueOnce(raw)
+      .mockResolvedValueOnce(undefined);
+    const transform = jest.fn((response: typeof raw) => ({
+      id: response.league_id,
+    }));
+    const apiStore = createApiStore(api);
+    const route = apiStore.route("teams/:teamId/leagues");
+    const useCustom = apiStore.createMutation(
+      "teams/:teamId/leagues",
+      execute,
+      transform,
+    );
+    const useCreate = route.create<
+      { name: string },
+      typeof raw,
+      { id: number }
+    >(transform);
+    const useUpdate = route.update<
+      { name: string },
+      typeof raw,
+      { id: number }
+    >(transform);
+    const useDelete = route.delete(transform);
+    const { result, unmount } = renderHook(() => {
+      const params = { teamId: "a/b" };
+      switch (kind) {
+        case "custom": {
+          const [mutate, pending, error] = useCustom(params);
+          return { mutate: () => mutate({ name: "Premier" }), pending, error };
+        }
+        case "create": {
+          const [mutate, pending, error] = useCreate(params);
+          return { mutate: () => mutate({ name: "Premier" }), pending, error };
+        }
+        case "update": {
+          const [mutate, pending, error] = useUpdate(7, params);
+          return { mutate: () => mutate({ name: "Premier" }), pending, error };
+        }
+        case "delete": {
+          const [mutate, pending, error] = useDelete(7, params);
+          return { mutate, pending, error };
+        }
+      }
+    });
+    for (const data of [{ id: 7 }, undefined]) {
+      await act(async () => {
+        const outcome = await result.current.mutate();
+        expect(outcome).toEqual({ ok: true, data });
+      });
+      expect(result.current.pending).toBe(false);
+      expect(result.current.error).toBeNull();
+    }
+    expect(transform).toHaveBeenCalledTimes(1);
+    expect(transform).toHaveBeenCalledWith(raw);
+    const request = { name: "Premier" };
+    if (kind === "custom")
+      expect(execute).toHaveBeenCalledWith("teams/a%2Fb/leagues", request);
+    if (kind === "create")
+      expect(post).toHaveBeenCalledWith("teams/a%2Fb/leagues", request);
+    if (kind === "update")
+      expect(put).toHaveBeenCalledWith("teams/a%2Fb/leagues/7", request);
+    if (kind === "delete")
+      expect(remove).toHaveBeenCalledWith("teams/a%2Fb/leagues/7");
+    expect(store.getState().namespaces[api.baseUrl]?.data ?? {}).toEqual({});
+    unmount();
+    apiStore.resetAll();
+  },
+);

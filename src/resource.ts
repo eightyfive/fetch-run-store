@@ -1,15 +1,24 @@
 import { createQuery, Query } from "./query";
-import { ExtractRouteParams, ResourceId, IdWithOptionalRouteParams } from "./types";
+import {
+  ExtractRouteParams,
+  ResourceId,
+  IdWithOptionalRouteParams,
+} from "./types";
 
 //
 // CRUDL
 //
 
 // READ
-export function createReadQuery<R extends string, Res extends object>(
+export function createReadQuery<
+  R extends string,
+  Res extends object,
+  Data = Res,
+>(
   ns: string,
   route: R,
   execute: (url: string) => Promise<Res | undefined>,
+  transform?: (response: Res) => Data,
 ) {
   type _RouteWithId = `${R}/:id`;
   type _AllParams = ExtractRouteParams<_RouteWithId>;
@@ -17,7 +26,12 @@ export function createReadQuery<R extends string, Res extends object>(
 
   const fullRoute = `${route}/:id` as _RouteWithId;
 
-  const useQuery = createQuery<_RouteWithId, Res>(ns, fullRoute, execute);
+  const useQuery = createQuery<_RouteWithId, Res, Data>(
+    ns,
+    fullRoute,
+    execute,
+    transform,
+  );
 
   const useReadQuery = (
     id: ResourceId,
@@ -26,16 +40,21 @@ export function createReadQuery<R extends string, Res extends object>(
     return useQuery({ id, ...routeParams } as _AllParams);
   };
 
-  return useReadQuery as IdWithOptionalRouteParams<_RouteParams, Query<Res>>;
+  return useReadQuery as IdWithOptionalRouteParams<_RouteParams, Query<Data>>;
 }
 
 // LIST
-export function createListQuery<R extends string, Res extends object>(
+export function createListQuery<
+  R extends string,
+  Res extends object,
+  Data = Res,
+>(
   ns: string,
   route: R,
   execute: (url: string) => Promise<Res | undefined>,
+  transform?: (response: Res) => Data,
 ) {
-  const useQuery = createQuery<R, Res>(ns, route, execute);
+  const useQuery = createQuery<R, Res, Data>(ns, route, execute, transform);
 
   type _RouteParams = ExtractRouteParams<R>;
 
@@ -43,8 +62,8 @@ export function createListQuery<R extends string, Res extends object>(
     return useQuery(routeParams);
   }
   type UseListQuery = [keyof _RouteParams] extends [never]
-    ? () => Query<Res>
-    : (routeParams: _RouteParams) => Query<Res>;
+    ? () => Query<Data>
+    : (routeParams: _RouteParams) => Query<Data>;
   return useListQuery as UseListQuery;
 }
 
@@ -54,12 +73,17 @@ export function createListQuery<R extends string, Res extends object>(
  * control subsequent searches (for example, by debouncing input and calling
  * refetch).
  */
-export function createSearchQuery<R extends string, Res extends object>(
+export function createSearchQuery<
+  R extends string,
+  Res extends object,
+  Data = Res,
+>(
   ns: string,
   route: R,
   execute: (url: string) => Promise<Res | undefined>,
+  transform?: (response: Res) => Data,
 ) {
-  const useQuery = createQuery<R, Res>(ns, route, execute);
+  const useQuery = createQuery<R, Res, Data>(ns, route, execute, transform);
 
   type _RouteParams = ExtractRouteParams<R>;
 
@@ -70,10 +94,13 @@ export function createSearchQuery<R extends string, Res extends object>(
     return useQuery(routeParams, searchParams);
   }
   type UseSearchQuery = [keyof _RouteParams] extends [never]
-    ? (searchParams?: URLSearchParams, routeParams?: _RouteParams) => Query<Res>
+    ? (
+        searchParams?: URLSearchParams,
+        routeParams?: _RouteParams,
+      ) => Query<Data>
     : (
         searchParams: URLSearchParams | undefined,
         routeParams: _RouteParams,
-      ) => Query<Res>;
+      ) => Query<Data>;
   return useSearchQuery as UseSearchQuery;
 }

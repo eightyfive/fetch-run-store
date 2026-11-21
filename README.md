@@ -51,6 +51,33 @@ const organizationUsersFactory = apiStore.route(
 export const useOrganizationUsers = organizationUsersFactory.list<User>();
 ```
 
+Pass an optional response transformer to `read`, `list`, `search`, `create`,
+`update`, or `delete`. Its parameter defines the wire response type and its
+return value defines the hook's exposed data type. List and search transformers
+receive the entire response, including any envelope:
+
+```ts
+type UserResponse = { user_id: number; display_name: string };
+const normalizeUser = (response: UserResponse): User => ({
+  id: response.user_id,
+  name: response.display_name,
+});
+const useNormalizedUser = userFactory.read(normalizeUser);
+const useNormalizedUsers = userFactory.list(
+  (response: { items: UserResponse[] }) => response.items.map(normalizeUser),
+);
+const useNormalizedCreate = userFactory.create<
+  { name: string }, UserResponse, User
+>(normalizeUser);
+```
+
+Custom `createQuery(route, execute, transform)` and
+`createMutation(route, execute, transform)` accept the same optional transformer.
+Queries cache the transformed value; mutations return it in successful results.
+An `undefined` response bypasses the transformer. `setData` writes directly to
+the cache, so pass values in the exposed data shape. Hooks sharing a cache key
+should use the same exposed shape.
+
 Caches are shared by `api.baseUrl`: separate instances with the same base URL
 share data, in-flight requests, invalidation, and reset. Applications own the
 cache lifecycle, including resetting shared caches after authentication changes.

@@ -263,3 +263,69 @@ test("a seeded entry remains stale and fetches when a query mounts", async () =>
   await act(async () => { resolve({ name: "server" }); await request; });
   expect(result.current.data).toEqual({ name: "server" });
 });
+
+test.each(["custom", "read", "list", "search"] as const)(
+  "%s transforms the response before caching and leaves setData as a direct write",
+  async (kind) => {
+    const api = Api.create("query-test");
+    const raw = { items: [{ league_id: 7 }], rawOnly: true };
+    jest.spyOn(api, "get").mockResolvedValue(raw);
+    const apiStore = createApiStore(api);
+    const transform = jest.fn((response: typeof raw) => ({
+      id: response.items[0].league_id,
+    }));
+    const route = apiStore.route("teams/:teamId/leagues");
+    const useCustom = apiStore.createQuery(
+      "teams/:teamId/leagues",
+      async () => raw,
+      transform,
+    );
+    const useRead = route.read(transform);
+    const useList = route.list(transform);
+    const useSearch = route.search(transform);
+    const { result } = renderHook(() => {
+      const params = { teamId: "a/b" };
+      switch (kind) {
+        case "custom":
+          return useCustom(params);
+        case "read":
+          return useRead(7, params);
+        case "list":
+          return useList(params);
+        case "search":
+          return useSearch(new URLSearchParams({ name: "Premier" }), params);
+      }
+    });
+    const key = `teams/a%2Fb/leagues${kind === "read" ? "/7" : kind === "search" ? "?name=Premier" : ""}`;
+    await waitFor(() => expect(result.current.data).toEqual({ id: 7 }));
+    expect(store.getState().namespaces["query-test"].data[key]).toEqual({
+      id: 7,
+    });
+    expect(transform).toHaveBeenCalledTimes(1);
+    expect(transform).toHaveBeenCalledWith(raw);
+    act(() => apiStore.setData(key, { id: 9 }));
+    expect(result.current.data).toEqual({ id: 9 });
+    expect(transform).toHaveBeenCalledTimes(1);
+  },
+);
+
+test("empty query responses bypass the transformer and stay fresh", async () => {
+  const transform = jest.fn((response: { league_id: number }) => ({
+    id: response.league_id,
+  }));
+  const execute = jest.fn(async () => undefined);
+  const useQuery = apiStore.createQuery("empty-leagues", execute, transform);
+  const first = renderHook(() => useQuery());
+  await waitFor(() => expect(first.result.current.isFetching).toBe(false));
+  expect(first.result.current.error).toBeNull();
+  expect(first.result.current.data).toBeUndefined();
+  expect(store.getState().namespaces["query-test"].data).toHaveProperty(
+    "empty-leagues",
+    undefined,
+  );
+  first.unmount();
+  const second = renderHook(() => useQuery());
+  expect(second.result.current.data).toBeUndefined();
+  expect(execute).toHaveBeenCalledTimes(1);
+  expect(transform).not.toHaveBeenCalled();
+});

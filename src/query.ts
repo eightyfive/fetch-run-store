@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 
 import { executeQuery, invalidateQuery, useApiStore } from "./store";
 import { ExtractRouteParams, WithOptionalRouteParams } from "./types";
-import { buildRoute } from "./utils";
+import { buildRoute, transformResponse } from "./utils";
 
 export type Query<T> = {
   data: T | undefined;
@@ -13,23 +13,24 @@ export type Query<T> = {
   refetch: () => Promise<void>;
 };
 
-export function createQuery<R extends string, Res extends object>(
+export function createQuery<R extends string, Res extends object, Data = Res>(
   ns: string,
   route: R,
   execute: (url: string) => Promise<Res | undefined>,
+  transform?: (response: Res) => Data,
 ) {
   type _RouteParams = ExtractRouteParams<R>;
 
   const useQuery = (
     routeParams: _RouteParams = {} as _RouteParams,
     searchParams?: URLSearchParams,
-  ): Query<Res> => {
+  ): Query<Data> => {
     const routeId = buildRoute(route, routeParams);
     const search = searchParams?.toString();
     const queryId = search ? `${routeId}?${search}` : routeId;
 
     // State
-    const data = useApiStore(ns, (s) => s.data[queryId] as Res | undefined);
+    const data = useApiStore(ns, (s) => s.data[queryId] as Data | undefined);
     const { error, isFetching, isFresh, revision } = useApiStore(ns, (s) => ({
       error: s.errors[queryId] ?? null,
       isFetching: s.fetching[queryId] === true,
@@ -46,8 +47,10 @@ export function createQuery<R extends string, Res extends object>(
     }, [ns, queryId]);
 
     const refetch = useCallback(() => {
-      return executeQuery(ns, queryId, () => execute(queryId));
-    }, [execute, ns, queryId]);
+      return executeQuery(ns, queryId, async () =>
+        transformResponse(await execute(queryId), transform),
+      );
+    }, [execute, transform, ns, queryId]);
 
     // Effects
     useEffect(() => {
@@ -67,7 +70,7 @@ export function createQuery<R extends string, Res extends object>(
     };
   };
 
-  type UseQueryFn = WithOptionalRouteParams<_RouteParams, Query<Res>>;
+  type UseQueryFn = WithOptionalRouteParams<_RouteParams, Query<Data>>;
 
   return useQuery as UseQueryFn;
 }

@@ -16,3 +16,6 @@ export type WithOptionalRouteParams<P, R> = [keyof P] extends [never]
 export type IdWithOptionalRouteParams<P, Result> = [keyof P] extends [never]
   ? (id: ResourceId, routeParams?: P) => Result
   : (id: ResourceId, routeParams: P) => Result;
+
+// Empty response bodies bypass transformers and retain their original type.
+export type TransformedResponse<Res, Data> = Data | Extract<Res, void>;
